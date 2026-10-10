@@ -1,7 +1,9 @@
 from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
+import sys
+
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QFormLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
+    QCheckBox, QComboBox, QDialog, QFormLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
     QVBoxLayout,
 )
 
@@ -28,17 +30,34 @@ LANGUAGES = (
     ("Korean", "ko"),
 )
 
+SERVICES = (
+    ("Groq Whisper Large v3", "groq"),
+    ("Groq Whisper Large v3 Turbo", "groq-turbo"),
+    ("Gemini Live", "gemini"),
+)
+
+AUTO_STOP = (
+    ("Off", 0),
+    ("After 2 s of silence", 2),
+    ("After 3 s of silence", 3),
+    ("After 4 s of silence", 4),
+    ("After 5 s of silence", 5),
+    ("After 8 s of silence", 8),
+)
+
+REPO_URL = "https://github.com/alican532/speech-dictation"
+
 
 class VersionLink(QLabel):
     def __init__(self):
         super().__init__(__version__)
         self.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setToolTip("github.com/ruwiss/gemini_speech")
+        self.setToolTip(REPO_URL.split("//", 1)[1])
         self.setStyleSheet("color: #7d8490; font-size: 11px;")
 
     def mousePressEvent(self, event):
-        QDesktopServices.openUrl(QUrl("https://github.com/ruwiss/gemini_speech"))
+        QDesktopServices.openUrl(QUrl(REPO_URL))
         event.accept()
 
 
@@ -127,7 +146,7 @@ class Settings(QDialog):
         super().__init__()
         self._on_save = on_save
         self._on_close = on_close
-        self.setWindowTitle("GeminiSpeechAPI")
+        self.setWindowTitle("Speech Dictation")
         self.setWindowIcon(QIcon(paths.ICON))
         self.setMinimumWidth(440)
         self.setStyleSheet(
@@ -140,50 +159,87 @@ class Settings(QDialog):
             "QPushButton { background: #3b82f6; color: white; border: none;"
             " border-radius: 8px; padding: 8px 14px; }"
             "QPushButton:hover { background: #5b97f7; }"
+            "QCheckBox { color: #e7e9ee; font-size: 13px; }"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 20)
         layout.setSpacing(14)
         form = QFormLayout()
         form.setSpacing(10)
+        self.service = QComboBox()
+        for label, code in SERVICES:
+            self.service.addItem(label, code)
+        self.groq_key = QLineEdit()
+        self.groq_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.groq_key.setPlaceholderText("console.groq.com API key")
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("AI Studio API key")
+        self.api_key.setPlaceholderText("AI Studio API key (Gemini and Translate)")
+        self.spoken = QComboBox()
+        self.spoken.addItem("Detect automatically", "")
+        for label, code in LANGUAGES:
+            self.spoken.addItem(label, code)
+        self.auto_stop = QComboBox()
+        for label, seconds in AUTO_STOP:
+            self.auto_stop.addItem(label, seconds)
+        self.trim = QCheckBox("Cut pauses before sending (Groq)")
+        self.floating = QCheckBox("Show the floating button")
+        self.startup = QCheckBox("Start with Windows")
         self.shortcut = ShortcutField()
         self.translate = ShortcutField()
         self.language = QComboBox()
         for label, code in LANGUAGES:
             self.language.addItem(label, code)
         self.cancel = ShortcutField(allow_bare=True)
-        form.addRow("API key", self.api_key)
+        form.addRow("Service", self.service)
+        form.addRow("Groq key", self.groq_key)
+        form.addRow("Gemini key", self.api_key)
+        form.addRow("I speak", self.spoken)
+        form.addRow("Auto-stop", self.auto_stop)
         form.addRow("Record", self.shortcut)
         form.addRow("Translate", self.translate)
-        form.addRow("Language", self.language)
+        form.addRow("Translate to", self.language)
         form.addRow("Cancel", self.cancel)
+        form.addRow("", self.trim)
+        form.addRow("", self.floating)
+        if sys.platform == "win32":
+            form.addRow("", self.startup)
         self._save_button = QPushButton("Save")
         self._save_button.setAutoDefault(False)
         self._save_button.clicked.connect(self._save)
         form.addRow("", self._save_button)
         layout.addLayout(form)
         hint = QLabel(
-            "Record types what you say. Translate types it in the language you pick. "
-            "Both shortcuts are optional."
+            "Record types what you say. Translate always uses Gemini and types it in the "
+            "language you pick. The lock on the floating button keeps it listening "
+            "through pauses until you stop it."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #b7bcc8;")
         layout.addWidget(hint)
         layout.addWidget(VersionLink())
 
-    def set_values(self, api_key, shortcut, translate, language, cancel):
-        self.api_key.setText(api_key)
+    def set_values(self, values):
+        self.api_key.setText(values["api_key"])
+        self.groq_key.setText(values["groq_key"])
+        shortcut, translate, cancel = values["shortcut"], values["translate"], values["cancel"]
         self.shortcut.owned = shortcut
         self.translate.owned = translate
         self.cancel.owned = cancel
         self.shortcut.setText(shortcut)
         self.translate.setText(translate)
         self.cancel.setText(cancel)
-        index = self.language.findData(language)
-        self.language.setCurrentIndex(index if index >= 0 else 0)
+        for combo, value in (
+            (self.language, values["language"]),
+            (self.service, values["service"]),
+            (self.spoken, values["spoken"]),
+            (self.auto_stop, values["auto_stop"]),
+        ):
+            index = combo.findData(value)
+            combo.setCurrentIndex(index if index >= 0 else 0)
+        self.trim.setChecked(values["trim"])
+        self.floating.setChecked(values["floating"])
+        self.startup.setChecked(values["startup"])
 
     def closeEvent(self, event):
         super().closeEvent(event)
@@ -227,6 +283,19 @@ class Settings(QDialog):
         if cancel_reason:
             QMessageBox.warning(self, messages.SHORTCUT_TITLE, cancel_reason)
             return
-        self._on_save(key, record, translate, language, cancel)
+        self._on_save({
+            "api_key": key,
+            "groq_key": self.groq_key.text().strip(),
+            "service": self.service.currentData() or "groq",
+            "spoken": self.spoken.currentData() or "",
+            "auto_stop": int(self.auto_stop.currentData() or 0),
+            "trim": self.trim.isChecked(),
+            "floating": self.floating.isChecked(),
+            "startup": self.startup.isChecked(),
+            "shortcut": record,
+            "translate": translate,
+            "language": language,
+            "cancel": cancel,
+        })
         self._save_button.setText("Saved")
         QTimer.singleShot(1500, lambda: self._save_button.setText("Save"))

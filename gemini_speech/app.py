@@ -7,14 +7,18 @@ from PyQt6.QtGui import QAction, QIcon, QPixmap, QColor
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from . import desktop
+from . import groq
 from . import hotkey
 from . import indicator
 from . import messages
 from . import paste
 from . import paths
 from . import speech
+from . import startup
 from .audio import Recorder, level
 from .settings import Settings
+from .vad import Silence
+from .widget import FloatingButton
 
 
 class _Update(QThread):
@@ -57,8 +61,8 @@ def _qt_log(mode, _context, message):
     note("qt %s: %s" % (mode, message))
 
 
-_INSTANCE_NAME = "Local\\GeminiSpeechAPI.single"
-_SHOW_NAME = "Local\\GeminiSpeechAPI.show"
+_INSTANCE_NAME = "Local\\SpeechDictation.single"
+_SHOW_NAME = "Local\\SpeechDictation.show"
 _INSTANCE_HANDLE = None
 _SHOW_HANDLE = None
 
@@ -108,7 +112,7 @@ def main():
     from PyQt6.QtCore import Qt, qInstallMessageHandler
     if sys.platform == "win32":
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GeminiSpeech.GeminiSpeechAPI")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SpeechDictation.App")
     if not _claim_single_instance():
         return
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseSoftwareOpenGL)
@@ -132,7 +136,16 @@ class GeminiSpeech(QObject):
         self.language = "en"
         self.cancel = "Esc"
         self.api_key = ""
+        self.groq_key = ""
+        self.service = "groq"
+        self.spoken = ""
+        self.auto_stop = 3
+        self.trim = True
+        self.floating = True
+        self.widget_pos = None
         self.recorder = Recorder()
+        self.silence = Silence()
+        self._locked = False
         self.indicator = indicator.Indicator()
         self.keys = hotkey.Hotkey()
         self.keys.failed.connect(self._fail)
@@ -151,14 +164,26 @@ class GeminiSpeech(QObject):
         self._load()
         self.tray = QSystemTrayIcon(self._dot(False))
         QApplication.instance().setWindowIcon(QIcon(paths.ICON))
-        self.tray.setToolTip("GeminiSpeechAPI")
+        self.tray.setToolTip("Speech Dictation")
         self.menu = QMenu()
         settings = QAction("Settings", self.menu)
         settings.triggered.connect(self.show_settings)
+        self.float_action = QAction("Floating button", self.menu)
+        self.float_action.setCheckable(True)
+        self.float_action.setChecked(self.floating)
+        self.float_action.triggered.connect(self._set_floating)
         quit_ = QAction("Quit", self.menu)
         quit_.triggered.connect(self.quit)
         self.menu.addAction(settings)
+        self.menu.addAction(self.float_action)
         self.menu.addAction(quit_)
+        self.button = FloatingButton()
+        self.button.toggled.connect(lambda: self.toggle())
+        self.button.lock_changed.connect(self._lock_changed)
+        self.button.settings_requested.connect(self.show_settings)
+        self.button.hide_requested.connect(lambda: self._set_floating(False))
+        self.button.quit_requested.connect(self.quit)
+        self.button.moved.connect(self._button_moved)
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._activated)
         self.cancel_watch = QTimer()
@@ -171,6 +196,7 @@ class GeminiSpeech(QObject):
         from .crashlog import note
         note("tray shown")
         QTimer.singleShot(0, self.tray.show)
+        QTimer.singleShot(0, self._show_button)
         self.cancel_watch.start()
         self._sync_tip()
         self._ensure_warm()
@@ -179,8 +205,49 @@ class GeminiSpeech(QObject):
         self._update_timer.setInterval(6 * 60 * 60 * 1000)
         self._update_timer.timeout.connect(self._check_update)
         self._update_timer.start()
-        if not self.api_key:
+        if not self._key_for(self.service):
             self.show_settings()
+
+    def _key_for(self, service):
+        return self.api_key if service == "gemini" else self.groq_key
+
+    def _values(self):
+        return {
+            "api_key": self.api_key,
+            "groq_key": self.groq_key,
+            "service": self.service,
+            "spoken": self.spoken,
+            "auto_stop": self.auto_stop,
+            "trim": self.trim,
+            "floating": self.floating,
+            "startup": startup.enabled(),
+            "shortcut": self.shortcut,
+            "translate": self.translate,
+            "language": self.language,
+            "cancel": self.cancel,
+        }
+
+    def _show_button(self):
+        if not self.floating or self._quitting:
+            self.button.hide()
+            return
+        pos = self.widget_pos or (None, None)
+        self.button.place(*pos)
+        self.button.show()
+        self.button.raise_()
+
+    def _set_floating(self, on):
+        self.floating = bool(on)
+        self.float_action.setChecked(self.floating)
+        self._store()
+        self._show_button()
+
+    def _button_moved(self, x, y):
+        self.widget_pos = (x, y)
+        self._store()
+
+    def _lock_changed(self, locked):
+        self._locked = locked
 
     def _check_update(self):
         if self._updating or self._quitting or self.recorder.active or self.busy:
@@ -237,7 +304,7 @@ class GeminiSpeech(QObject):
 
     def show_settings(self):
         self.keys.stop()
-        self.settings.set_values(self.api_key, self.shortcut, self.translate, self.language, self.cancel)
+        self.settings.set_values(self._values())
         self.settings.show()
         self.settings.raise_()
         self.settings.activateWindow()
@@ -257,13 +324,23 @@ class GeminiSpeech(QObject):
         else:
             self.keys.stop()
 
-    def save_settings(self, api_key, record, translate, language, cancel):
-        self.api_key = api_key.strip()
-        self.shortcut = record
-        self.translate = translate
-        self.language = language or "en"
-        self.cancel = cancel or "Esc"
+    def save_settings(self, values):
+        self.api_key = values["api_key"].strip()
+        self.groq_key = values["groq_key"].strip()
+        self.service = values["service"]
+        self.spoken = values["spoken"]
+        self.auto_stop = values["auto_stop"]
+        self.trim = values["trim"]
+        record = self.shortcut = values["shortcut"]
+        translate = self.translate = values["translate"]
+        self.language = values["language"] or "en"
+        cancel = self.cancel = values["cancel"] or "Esc"
+        try:
+            startup.set_enabled(values["startup"])
+        except OSError as exc:
+            self._overlay("error", "Start with Windows: %s" % exc)
         self._store()
+        self._set_floating(values["floating"])
         self.settings.shortcut.owned = record
         self.settings.translate.owned = translate
         self.settings.cancel.owned = cancel
@@ -272,7 +349,10 @@ class GeminiSpeech(QObject):
         self._ensure_warm()
 
     def _ensure_warm(self):
-        if self._quitting or not self.api_key or self._live is not None:
+        if self.service != "gemini" and self._warm is not None:
+            self._warm.cancel()
+            self._warm = None
+        if self._quitting or self.service != "gemini" or not self.api_key or self._live is not None:
             return
         warm = self._warm
         if warm is not None and warm.fresh() and warm._key == self.api_key and not warm._language:
@@ -300,20 +380,31 @@ class GeminiSpeech(QObject):
         if self.recorder.active:
             self._finish()
             return
-        if not self.api_key:
+        service = "gemini" if mode == "translate" else self.service
+        if not self._key_for(service):
             note("toggle no api key")
-            self._overlay("error", messages.API_KEY_MISSING)
+            if mode == "translate":
+                missing = messages.TRANSLATE_NEEDS_GEMINI
+            elif service == "gemini":
+                missing = messages.API_KEY_MISSING
+            else:
+                missing = messages.GROQ_KEY_MISSING
+            self._overlay("error", missing)
             self.show_settings()
             return
         try:
             desktop.remember_focus()
-            note("opening live session")
+            note("opening %s session" % service)
             if mode == "translate":
                 self._live = speech.LiveSession(self.api_key, self.language)
                 self._live.open()
-            else:
+            elif service == "gemini":
                 self._live = self._take_live()
-            self.recorder.on_chunk = self._live.push
+            else:
+                self._live = groq.GroqSession(self.groq_key, service, self.spoken, self.trim)
+                self._live.open()
+            self.silence.reset()
+            self.recorder.on_chunk = self._on_chunk
             note("opening microphone")
             self.recorder.start()
             note("microphone open")
@@ -326,11 +417,18 @@ class GeminiSpeech(QObject):
         self._sync_tray()
         note("toggle returned")
 
+    def _on_chunk(self, pcm):
+        self.silence.feed(pcm)
+        live = self._live
+        if live is not None:
+            live.push(pcm)
+
     def _finish(self):
         if self._stopping or self.busy:
             return
         self._stopping = True
         self.busy = True
+        self._sync_tray()
         self._overlay("busy")
         self._finish_token += 1
         token = self._finish_token
@@ -363,6 +461,7 @@ class GeminiSpeech(QObject):
         live = self._live
         self._live = None
         self._stopping = False
+        self._unlock()
         self._sync_tray()
         if live is None:
             self.busy = False
@@ -376,6 +475,7 @@ class GeminiSpeech(QObject):
 
     def _drop_recording(self):
         self._finish_token += 1
+        self._unlock()
         self._stopping = False
         self.recorder.on_chunk = None
         self.recorder.stop()
@@ -393,9 +493,42 @@ class GeminiSpeech(QObject):
         else:
             self._overlay("error", messages.PASTE_FAILED)
         self.busy = False
+        self._sync_tray()
+
+    def _unlock(self):
+        self._locked = False
+        self.button.set_locked(False)
+
+    def _watch_silence(self):
+        if not self.recorder.active or self.busy or self._stopping:
+            return
+        quiet = self.silence.quiet_for()
+        countdown = None
+        wait = self.auto_stop
+        if wait and not self._locked:
+            if self.silence.heard:
+                if quiet >= wait:
+                    self._finish()
+                    return
+                if quiet >= 1.0 and wait > 1.0:
+                    countdown = 1.0 - (quiet - 1.0) / (wait - 1.0)
+            else:
+                # Some people take a breath before they start, so the first word gets longer.
+                grace = wait + 2.0
+                elapsed = self.silence.elapsed()
+                if elapsed >= grace:
+                    self._drop_recording()
+                    self._sync_tray()
+                    self._overlay("error", messages.NO_SPEECH)
+                    self._ensure_warm()
+                    return
+                if elapsed >= 1.0:
+                    countdown = 1.0 - (elapsed - 1.0) / (grace - 1.0)
+        self.button.set_level(self.silence.level, countdown)
 
     def _transcribe_failed(self, message):
         self.busy = False
+        self._sync_tray()
         self._ensure_warm()
         self._overlay("error", message)
 
@@ -420,6 +553,7 @@ class GeminiSpeech(QObject):
             if time.monotonic() - self._rewarm_at > 2:
                 self._rewarm_at = time.monotonic()
                 self._ensure_warm()
+        self._watch_silence()
         live = self._live
         if self.recorder.active and live is not None and not self.busy and live.done.is_set():
             if live.text.strip() or live.limit_hit.is_set():
@@ -430,10 +564,10 @@ class GeminiSpeech(QObject):
                 self._overlay("error", message)
 
     def _sync_tip(self):
-        if self.api_key:
-            self.tray.setToolTip("GeminiSpeechAPI is ready")
+        if self._key_for(self.service):
+            self.tray.setToolTip("Speech Dictation is ready")
         else:
-            self.tray.setToolTip("GeminiSpeechAPI: add an API key")
+            self.tray.setToolTip("Speech Dictation: add an API key")
 
     def _fail(self, message):
         self._overlay("error", message[:80])
@@ -448,6 +582,7 @@ class GeminiSpeech(QObject):
             timer.stop()
         desktop.stop()
         self.indicator.dismiss()
+        self.button.hide()
         self.settings.hide()
         self.tray.hide()
         self.keys.stop()
@@ -487,12 +622,36 @@ class GeminiSpeech(QObject):
             self.cancel = data["cancel"]
         if data.get("api_key"):
             self.api_key = data["api_key"]
+        if data.get("groq_key"):
+            self.groq_key = data["groq_key"]
+        if data.get("service") in ("groq", "groq-turbo", "gemini"):
+            self.service = data["service"]
+        elif "service" not in data and self.api_key:
+            # A config from the original app has only a Gemini key.
+            self.service = "gemini"
+        self.spoken = data.get("spoken") or ""
+        if isinstance(data.get("auto_stop"), int):
+            self.auto_stop = data["auto_stop"]
+        if "trim" in data:
+            self.trim = bool(data["trim"])
+        if "floating" in data:
+            self.floating = bool(data["floating"])
+        pos = data.get("widget_pos")
+        if isinstance(pos, list) and len(pos) == 2:
+            self.widget_pos = (int(pos[0]), int(pos[1]))
 
     def _store(self):
         os.makedirs(os.path.dirname(paths.config_path()), exist_ok=True)
         open(paths.config_path(), "w", encoding="utf-8").write(
             json.dumps({
                 "api_key": self.api_key,
+                "groq_key": self.groq_key,
+                "service": self.service,
+                "spoken": self.spoken,
+                "auto_stop": self.auto_stop,
+                "trim": self.trim,
+                "floating": self.floating,
+                "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,
                 "language": self.language,
@@ -505,6 +664,9 @@ class GeminiSpeech(QObject):
         QTimer.singleShot(0, lambda: self._show_overlay(kind, message))
 
     def _show_overlay(self, kind, message):
+        if kind in ("recording", "busy") and self.button.isVisible():
+            # The floating button already shows it, so the cursor stays clear.
+            return
         if kind == "recording":
             self.indicator.show_recording()
         elif kind == "busy":
@@ -518,6 +680,12 @@ class GeminiSpeech(QObject):
 
     def _sync_tray(self):
         self.tray.setIcon(self._dot(self.recorder.active))
+        if self.busy or self._stopping:
+            self.button.set_state("busy")
+        elif self.recorder.active:
+            self.button.set_state("recording")
+        else:
+            self.button.set_state("idle")
 
     def _dot(self, listening):
         from PyQt6.QtGui import QPainter

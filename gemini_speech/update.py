@@ -9,7 +9,7 @@ import urllib.request
 
 from . import __version__
 
-REPO = "ruwiss/gemini_speech"
+REPO = "alican532/speech-dictation"
 API = "https://api.github.com/repos/%s/releases/latest" % REPO
 ASSETS = {
     "win32": "GeminiSpeechAPI-Setup.exe",

@@ -23,8 +23,14 @@ def config_dir():
         base = os.path.expanduser("~/Library/Application Support")
     else:
         base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    path = os.path.join(base, "GeminiSpeechAPI")
-    os.makedirs(path, exist_ok=True)
+    path = os.path.join(base, "SpeechDictation")
+    if not os.path.isdir(path):
+        os.makedirs(path, exist_ok=True)
+        # Bring the key and shortcuts over from the original app once.
+        old = os.path.join(base, "GeminiSpeechAPI", "config.json")
+        if os.path.isfile(old):
+            import shutil
+            shutil.copyfile(old, os.path.join(path, "config.json"))
     return path
 
 
