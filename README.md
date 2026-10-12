@@ -4,14 +4,22 @@
 
 Dictation and translation for the desktop. Press a shortcut or the floating button, speak, and the text is pasted where you were typing.
 
-Two services are built in:
+Three services listen to you:
 
-| Service | Dictation | Translation |
-|---|---|---|
-| **Groq** (default) | Whisper Large v3 or Large v3 Turbo | Whisper writes it down, then GPT-OSS 120B or 20B translates it |
-| **Gemini** | Gemini 3.5 Transcribe Live, streamed as you speak | Gemini 3.5 Live Translate |
+| Service | How it listens |
+|---|---|
+| **Groq** (default) | Whisper Large v3 or Large v3 Turbo, after you stop |
+| **ElevenLabs** | Scribe v2 after you stop, or Scribe v2 Realtime while you speak |
+| **Gemini** | Gemini 3.5 Transcribe Live, while you speak |
 
-Both translate into any language in the list. One API key is enough for the service you pick.
+What happens to the text next is your choice, whatever service listened:
+
+| Step | Engines |
+|---|---|
+| **Correction** (fixes misheard words) | Off, ElevenLabs edit, Groq GPT-OSS 120B / 20B, Gemini Flash-Lite / Flash |
+| **Translation** (into any listed language) | ElevenLabs edit, Groq GPT-OSS 120B / 20B, Gemini Flash-Lite / Flash, Google Translate, Gemini Live |
+
+ElevenLabs edit works only on ElevenLabs transcripts and Gemini Live translation only with the Gemini service. You need a key for the service and for each engine you pick; Settings shows only those key fields.
 
 ## Features
 
@@ -22,9 +30,10 @@ Both translate into any language in the list. One API key is enough for the serv
   - **✕:** hide the bar (and cancel a running recording). The next dictation brings it back.
 - **Auto-stop.** After a few seconds of silence the recording ends and the text is pasted; a ring counts down the last seconds. If nothing is said at all, the recording is dropped and nothing is sent.
 - **Sounds.** On Windows, the same start, stop and cancel chimes as Windows voice typing; on macOS and Linux, the app's own chimes in `assets/sounds`.
-- **Pause trimming (Groq).** Silence before, after and between phrases is cut before upload. This is faster and keeps Whisper from inventing text on silence; stock phantom lines such as "Altyazı M.K." are dropped too.
-- **Smart correction (Groq).** The text model fixes words Whisper misheard, judging by the whole sentence, and leaves everything else alone. If its reply looks like a rewrite, or the request fails, the Whisper text is pasted as it is.
-- **Vocabulary (Groq).** Names and terms you use often, such as `Claude`. They go to Whisper as a spelling hint and to the text model.
+- **Pause trimming (Groq, ElevenLabs Scribe v2).** Silence before, after and between phrases is cut before upload. This is faster, costs less and keeps the model from inventing text on silence; stock phantom lines such as "Altyazı M.K." are dropped too.
+- **Filler words (ElevenLabs).** "um", "uh" and false starts are left out.
+- **Smart correction.** The chosen engine fixes words the service misheard, judging by the whole sentence, and leaves everything else alone. If its reply looks like a rewrite, or the request fails, the text is pasted as it was heard.
+- **Vocabulary.** Names and terms you use often, such as `Claude`. They go to Whisper as a spelling hint, to ElevenLabs as key terms it listens for, and to the correction and translation engines.
 - **Two interface languages:** English and Turkish. The app follows the system language until you pick one.
 - **Start at sign-in**, an option in Settings (a Run entry on Windows, a LaunchAgent on macOS, an autostart entry on Linux).
 
@@ -34,7 +43,9 @@ Both translate into any language in the list. One API key is enough for the serv
 - Python 3.11 or newer to run from source
 - An API key for the service you use:
   - Groq: [console.groq.com/keys](https://console.groq.com/keys)
+  - ElevenLabs: [elevenlabs.io/app/developers/api-keys](https://elevenlabs.io/app/developers/api-keys)
   - Gemini: [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+  - Google Translate: a Google Cloud API key with the Cloud Translation API turned on. An AI Studio key does not work for it.
 
 ## Run from source
 
@@ -77,14 +88,15 @@ Every feature is meant to work on all three systems. What differs:
 
 ## Settings
 
-Only the chosen service's section shows.
+Only what the chosen service and engines use shows.
 
 | Section | Settings |
 |---|---|
-| Service | Groq Whisper Large v3, Groq Whisper Large v3 Turbo, Gemini Live |
-| Groq | Key, the language you speak, text model, vocabulary, smart correction, pause trimming |
-| Gemini | Key |
-| General | App language, dictate / translate / cancel shortcuts, translation language, auto-stop, sounds, start at sign-in |
+| Service | Groq Whisper Large v3 / Large v3 Turbo, ElevenLabs Scribe v2 / Scribe v2 Realtime, Gemini Live |
+| API keys | Groq, ElevenLabs, Gemini, Google: the ones in use |
+| Speech | The language you speak, vocabulary, pause trimming, filler words |
+| Text | Correction engine, translation engine, translation language |
+| General | App language, dictate / translate / cancel shortcuts, auto-stop, sounds, start at sign-in |
 
 Settings are stored here:
 
@@ -99,9 +111,11 @@ On first start a config left by the original GeminiSpeechAPI app is copied over 
 ## Costs and privacy
 
 - **Groq:** Whisper Large v3 is about $0.111 per audio hour and Turbo about $0.04; each request is billed for at least 10 seconds. GPT-OSS text calls cost a fraction of a cent. There is a rate-limited free tier.
-- **Gemini:** free of charge on the free tier, where Google may use the content to improve its products. On the paid tier, dictation is about $0.009 and translation about $0.037 per minute.
+- **ElevenLabs:** Scribe v2 is about $0.22 and Scribe v2 Realtime about $0.39 per audio hour. Vocabulary key terms add 20%, ElevenLabs edit adds 30% (billed for at least 10 seconds). The free plan includes a few hours a month.
+- **Gemini:** free of charge on the free tier, where Google may use the content to improve its products. On the paid tier, dictation is about $0.009 and translation about $0.037 per minute. Gemini Flash-Lite and Flash text calls cost a fraction of a cent.
+- **Google Translate:** $20 per million characters, the first 500,000 characters a month free.
 
-Check the providers' pricing pages for current figures. Audio goes only to the service you pick; the app has no server of its own.
+Check the providers' pricing pages for current figures. Audio goes only to the service you pick, and the text only to the engines you pick; the app has no server of its own.
 
 ## Building an installer
 

@@ -33,7 +33,6 @@ TR = {
     "Service": "Servis",
     "Groq key": "Groq anahtarı",
     "I speak": "Konuştuğum dil",
-    "Text model": "Metin modeli",
     "Vocabulary": "Sözlük",
     "Gemini key": "Gemini anahtarı",
     "General": "Genel",
@@ -49,7 +48,6 @@ TR = {
     "AI Studio API key": "AI Studio API anahtarı",
     "Names and terms, separated by commas": "İsimler ve terimler, virgülle ayırın",
     "Detect automatically": "Otomatik algıla",
-    "Smart correction: fix misheard words": "Akıllı düzeltme: yanlış duyulan kelimeleri düzelt",
     "Cut pauses before sending": "Göndermeden önce duraklamaları kes",
     "Play a sound when listening starts and stops": "Dinleme başlayınca ve bitince ses çal",
     "Start with Windows": "Windows ile başlat",
@@ -60,11 +58,34 @@ TR = {
     "fastest": "en hızlı",
     "Click, then press the keys": "Tıklayın, sonra tuşlara basın",
     "Press the keys": "Tuşlara basın",
-    "Whisper writes down what you say. The Text model fixes words it misheard "
-    "and does the translating. Vocabulary words are always spelled the way you "
-    "write them.":
-        "Whisper söylediklerinizi yazıya döker. Metin modeli yanlış duyulan kelimeleri "
-        "düzeltir ve çeviriyi yapar. Sözlükteki kelimeler her zaman sizin yazdığınız gibi yazılır.",
+    "Whisper writes down what you say once you stop. Vocabulary words are spelled the way you write them.":
+        "Whisper siz durunca söylediklerinizi yazıya döker. Sözlükteki kelimeler sizin yazdığınız gibi yazılır.",
+    "Scribe writes down what you say once you stop. Vocabulary words are listened for and spelled the way you write them.":
+        "Scribe siz durunca söylediklerinizi yazıya döker. Sözlükteki kelimelere özellikle kulak verir "
+        "ve onları sizin yazdığınız gibi yazar.",
+    "Scribe writes down what you say while you speak, so the text is ready soon after you stop. Vocabulary words are listened for.":
+        "Scribe siz konuşurken yazıya döker, bu yüzden metin siz durur durmaz hazır olur. "
+        "Sözlükteki kelimelere özellikle kulak verir.",
+    "Correction fixes words the speech service misheard. Translation runs when "
+    "you use the Translate shortcut or the badge on the button. ElevenLabs edit "
+    "adds 30% to the ElevenLabs price; Google Translate only translates.":
+        "Düzeltme, konuşma servisinin yanlış duyduğu kelimeleri düzeltir. Çeviri, çeviri "
+        "kısayolunu ya da butondaki rozeti kullandığınızda çalışır. ElevenLabs düzenleme "
+        "ElevenLabs ücretine %30 ekler; Google Translate yalnızca çeviri yapar.",
+    "API keys": "API anahtarları",
+    "ElevenLabs key": "ElevenLabs anahtarı",
+    "Google key": "Google anahtarı",
+    "elevenlabs.io API key": "elevenlabs.io API anahtarı",
+    "Google Cloud key with Cloud Translation on": "Cloud Translation açık bir Google Cloud anahtarı",
+    "Speech": "Konuşma",
+    "Text": "Metin",
+    "Correction": "Düzeltme",
+    "Translation": "Çeviri motoru",
+    "Leave out filler words (um, uh)": "Dolgu kelimelerini çıkar (ıı, şey)",
+    "ElevenLabs edit": "ElevenLabs düzenleme",
+    "same request": "aynı istekte",
+    "fast": "hızlı",
+    "live": "canlı",
     "Gemini Live writes down what you say as you speak, and translates it live.":
         "Gemini Live siz konuşurken söylediklerinizi yazıya döker ve canlı olarak çevirir.",
     "The lock on the floating button keeps it listening through pauses until you stop it.":
@@ -102,7 +123,18 @@ TR = {
     "Groq rejected the API key": "Groq API anahtarını reddetti",
     "Groq limit reached, try again shortly": "Groq kullanım sınırına ulaşıldı, biraz sonra tekrar deneyin",
     "Could not reach Groq": "Groq'a ulaşılamadı",
-    "Translate needs a Gemini API key": "Çeviri için Gemini API anahtarı gerekir",
+    "Add an ElevenLabs API key in Settings": "Ayarlar'dan bir ElevenLabs API anahtarı ekleyin",
+    "ElevenLabs rejected the API key": "ElevenLabs API anahtarını reddetti",
+    "ElevenLabs limit reached, try again shortly": "ElevenLabs kullanım sınırına ulaşıldı, biraz sonra tekrar deneyin",
+    "ElevenLabs credits are used up": "ElevenLabs kredisi bitti",
+    "Could not reach ElevenLabs": "ElevenLabs'e ulaşılamadı",
+    "Gemini rejected the API key": "Gemini API anahtarını reddetti",
+    "Gemini limit reached, try again shortly": "Gemini kullanım sınırına ulaşıldı, biraz sonra tekrar deneyin",
+    "Could not reach Gemini": "Gemini'ye ulaşılamadı",
+    "Add a Google Cloud API key in Settings": "Ayarlar'dan bir Google Cloud API anahtarı ekleyin",
+    "Google Translate rejected the API key": "Google Translate API anahtarını reddetti",
+    "Google Translate limit reached, try again shortly": "Google Translate kullanım sınırına ulaşıldı, biraz sonra tekrar deneyin",
+    "Could not reach Google Translate": "Google Translate'e ulaşılamadı",
     "Translation failed": "Çeviri başarısız",
     "SSL certificate failed — reinstall the Linux build": "SSL sertifikası doğrulanamadı — Linux sürümünü yeniden kurun",
     "Shortcut": "Kısayol",

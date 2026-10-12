@@ -334,11 +334,12 @@ def _ssl_context():
         return ssl.create_default_context()
 
 
-def _connect(key):
-    raw = socket.create_connection((HOST, 443), timeout=20)
-    sock = _ssl_context().wrap_socket(raw, server_hostname=HOST)
+def _connect(key, host=HOST, path=PATH, query=None, headers=None):
+    raw = socket.create_connection((host, 443), timeout=20)
+    sock = _ssl_context().wrap_socket(raw, server_hostname=host)
     nonce = base64.b64encode(os.urandom(16)).decode("ascii")
-    query = urllib.parse.urlencode({"key": key})
+    query = urllib.parse.urlencode({"key": key} if query is None else query, doseq=True)
+    extra = "".join("%s: %s\r\n" % item for item in (headers or {}).items())
     request = (
         "GET %s?%s HTTP/1.1\r\n"
         "Host: %s\r\n"
@@ -346,8 +347,9 @@ def _connect(key):
         "Connection: Upgrade\r\n"
         "Sec-WebSocket-Key: %s\r\n"
         "Sec-WebSocket-Version: 13\r\n"
+        "%s"
         "\r\n"
-    ) % (PATH, query, HOST, nonce)
+    ) % (path, query, host, nonce, extra)
     sock.sendall(request.encode("ascii"))
     status, leftover = _read_headers(sock)
     if b" 101 " not in status:

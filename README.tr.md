@@ -4,14 +4,22 @@
 
 Masaüstü için dikte ve çeviri. Bir kısayola ya da yüzen butona basın, konuşun; metin yazdığınız yere yapıştırılır.
 
-İki servis hazır gelir:
+Sizi üç servis dinleyebilir:
 
-| Servis | Dikte | Çeviri |
-|---|---|---|
-| **Groq** (varsayılan) | Whisper Large v3 ya da Large v3 Turbo | Whisper yazıya döker, GPT-OSS 120B ya da 20B çevirir |
-| **Gemini** | Gemini 3.5 Transcribe Live, konuşurken canlı | Gemini 3.5 Live Translate |
+| Servis | Nasıl dinler |
+|---|---|
+| **Groq** (varsayılan) | Whisper Large v3 ya da Large v3 Turbo, siz durunca |
+| **ElevenLabs** | Scribe v2 siz durunca, ya da Scribe v2 Realtime siz konuşurken |
+| **Gemini** | Gemini 3.5 Transcribe Live, siz konuşurken |
 
-İkisi de listedeki her dile çevirir. Seçtiğiniz servisin tek bir API anahtarı yeterlidir.
+Metnin sonra ne olacağını, hangi servis dinlemiş olursa olsun siz seçersiniz:
+
+| Adım | Motorlar |
+|---|---|
+| **Düzeltme** (yanlış duyulan kelimeler) | Kapalı, ElevenLabs düzenleme, Groq GPT-OSS 120B / 20B, Gemini Flash-Lite / Flash |
+| **Çeviri** (listedeki her dile) | ElevenLabs düzenleme, Groq GPT-OSS 120B / 20B, Gemini Flash-Lite / Flash, Google Translate, Gemini Live |
+
+ElevenLabs düzenleme yalnızca ElevenLabs metinlerinde, Gemini Live çevirisi yalnızca Gemini servisiyle çalışır. Servisin ve seçtiğiniz her motorun anahtarı gerekir; Ayarlar yalnızca bu anahtar alanlarını gösterir.
 
 ## Özellikler
 
@@ -22,9 +30,10 @@ Masaüstü için dikte ve çeviri. Bir kısayola ya da yüzen butona basın, kon
   - **✕:** çubuğu gizler (süren bir kayıt varsa iptal eder). Bir sonraki dikte onu geri getirir.
 - **Otomatik durdurma.** Birkaç saniye sessiz kalınca kayıt biter ve metin yapıştırılır; son saniyeleri bir halka geri sayar. Hiç konuşulmazsa kayıt atılır ve hiçbir şey gönderilmez.
 - **Sesler.** Windows'ta, Windows sesle yazmanın başlama, bitiş ve iptal sesleri; macOS ve Linux'ta uygulamanın `assets/sounds` içindeki kendi sesleri.
-- **Duraklama kesme (Groq).** Cümlelerin önündeki, arkasındaki ve aralarındaki sessizlik gönderilmeden kesilir. Bu hem hızlandırır hem de Whisper'ın sessizlikte metin uydurmasını önler; "Altyazı M.K." gibi bilinen hayalet cümleler de atılır.
-- **Akıllı düzeltme (Groq).** Metin modeli, Whisper'ın yanlış duyduğu kelimeleri cümlenin bütününe bakarak düzeltir ve gerisine dokunmaz. Cevabı yeniden yazılmış gibi görünürse ya da istek başarısız olursa Whisper'ın metni olduğu gibi yapıştırılır.
-- **Sözlük (Groq).** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak ve metin modeline gider.
+- **Duraklama kesme (Groq, ElevenLabs Scribe v2).** Cümlelerin önündeki, arkasındaki ve aralarındaki sessizlik gönderilmeden kesilir. Bu hem hızlandırır, hem ucuzlatır, hem de modelin sessizlikte metin uydurmasını önler; "Altyazı M.K." gibi bilinen hayalet cümleler de atılır.
+- **Dolgu kelimeleri (ElevenLabs).** "ıı", "şey" ve yarım kalan başlangıçlar çıkarılır.
+- **Akıllı düzeltme.** Seçilen motor, servisin yanlış duyduğu kelimeleri cümlenin bütününe bakarak düzeltir ve gerisine dokunmaz. Cevabı yeniden yazılmış gibi görünürse ya da istek başarısız olursa metin duyulduğu gibi yapıştırılır.
+- **Sözlük.** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak, ElevenLabs'e kulak vereceği anahtar terimler olarak, düzeltme ve çeviri motorlarına da gider.
 - **İki arayüz dili:** İngilizce ve Türkçe. Siz seçene kadar sistem dilini kullanır.
 - **Oturum açılınca başlat**, Ayarlar'da bir seçenek (Windows'ta Run kaydı, macOS'ta LaunchAgent, Linux'ta autostart dosyası).
 
@@ -34,7 +43,9 @@ Masaüstü için dikte ve çeviri. Bir kısayola ya da yüzen butona basın, kon
 - Kaynaktan çalıştırmak için Python 3.11 ya da üstü
 - Kullandığınız servisin API anahtarı:
   - Groq: [console.groq.com/keys](https://console.groq.com/keys)
+  - ElevenLabs: [elevenlabs.io/app/developers/api-keys](https://elevenlabs.io/app/developers/api-keys)
   - Gemini: [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+  - Google Translate: Cloud Translation API'si açık bir Google Cloud API anahtarı. AI Studio anahtarı bunun için çalışmaz.
 
 ## Kaynaktan çalıştırma
 
@@ -77,14 +88,15 @@ Her özellik üç sistemde de çalışacak şekilde yazıldı. Farklı olanlar:
 
 ## Ayarlar
 
-Sadece seçili servisin bölümü görünür.
+Yalnızca seçili servisin ve motorların kullandıkları görünür.
 
 | Bölüm | Ayarlar |
 |---|---|
-| Servis | Groq Whisper Large v3, Groq Whisper Large v3 Turbo, Gemini Live |
-| Groq | Anahtar, konuştuğunuz dil, metin modeli, sözlük, akıllı düzeltme, duraklama kesme |
-| Gemini | Anahtar |
-| Genel | Uygulama dili, dikte / çeviri / iptal kısayolları, çeviri dili, otomatik durdurma, sesler, oturum açılınca başlat |
+| Servis | Groq Whisper Large v3 / Large v3 Turbo, ElevenLabs Scribe v2 / Scribe v2 Realtime, Gemini Live |
+| API anahtarları | Groq, ElevenLabs, Gemini, Google: kullanılanlar |
+| Konuşma | Konuştuğunuz dil, sözlük, duraklama kesme, dolgu kelimeleri |
+| Metin | Düzeltme motoru, çeviri motoru, çeviri dili |
+| Genel | Uygulama dili, dikte / çeviri / iptal kısayolları, otomatik durdurma, sesler, oturum açılınca başlat |
 
 Ayarların saklandığı yer:
 
@@ -99,9 +111,11 @@ Ayarların saklandığı yer:
 ## Maliyet ve gizlilik
 
 - **Groq:** Whisper Large v3 ses saati başına yaklaşık $0,111, Turbo yaklaşık $0,04; her istek en az 10 saniye üzerinden ücretlendirilir. GPT-OSS metin istekleri bir sentin çok küçük bir kısmı tutar. Kullanım sınırlı ücretsiz katman vardır.
-- **Gemini:** Ücretsiz katmanda ücret yoktur; bu katmanda Google içeriği ürünlerini geliştirmek için kullanabilir. Ücretli katmanda dikte dakikası yaklaşık $0,009, çeviri dakikası yaklaşık $0,037'dir.
+- **ElevenLabs:** Scribe v2 ses saati başına yaklaşık $0,22, Scribe v2 Realtime yaklaşık $0,39. Sözlükteki anahtar terimler %20, ElevenLabs düzenleme %30 ekler (en az 10 saniye üzerinden). Ücretsiz planda ayda birkaç saat vardır.
+- **Gemini:** Ücretsiz katmanda ücret yoktur; bu katmanda Google içeriği ürünlerini geliştirmek için kullanabilir. Ücretli katmanda dikte dakikası yaklaşık $0,009, çeviri dakikası yaklaşık $0,037'dir. Gemini Flash-Lite ve Flash metin istekleri bir sentin çok küçük bir kısmı tutar.
+- **Google Translate:** Milyon karakter başına $20; her ay ilk 500.000 karakter ücretsiz.
 
-Güncel rakamlar için sağlayıcıların fiyat sayfalarına bakın. Ses yalnızca seçtiğiniz servise gider; uygulamanın kendine ait bir sunucusu yoktur.
+Güncel rakamlar için sağlayıcıların fiyat sayfalarına bakın. Ses yalnızca seçtiğiniz servise, metin yalnızca seçtiğiniz motorlara gider; uygulamanın kendine ait bir sunucusu yoktur.
 
 ## Kurulum dosyası oluşturma
 

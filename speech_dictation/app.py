@@ -7,6 +7,7 @@ from PyQt6.QtGui import QAction, QIcon, QPixmap, QColor
 from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from . import desktop
+from . import elevenlabs
 from . import groq
 from . import hotkey
 from . import i18n
@@ -17,6 +18,7 @@ from . import paths
 from . import sounds
 from . import speech
 from . import startup
+from . import textproc
 from .audio import Recorder, level
 from .i18n import tr
 from .settings import LANGUAGES, Settings
@@ -178,13 +180,17 @@ class GeminiSpeech(QObject):
         self.cancel = "Esc"
         self.api_key = ""
         self.groq_key = ""
+        self.elevenlabs_key = ""
+        self.google_key = ""
         self.service = "groq"
         self.spoken = ""
         self.auto_stop = 3
         self.trim = True
+        self.no_verbatim = True
         self.sounds = True
-        self.translator = groq.TRANSLATORS[0]
-        self.correct = True
+        # Engines for the text after it is heard; see textproc.
+        self.corrector = "groq-120b"
+        self.translator = "groq-120b"
         self.vocabulary = "Claude"
         self.app_language = ""
         self.widget_pos = None
@@ -252,24 +258,32 @@ class GeminiSpeech(QObject):
         if not self._key_for(self.service):
             self.show_settings()
 
+    def _keys(self):
+        return {
+            "groq": self.groq_key,
+            "elevenlabs": self.elevenlabs_key,
+            "gemini": self.api_key,
+            "google": self.google_key,
+        }
+
     def _key_for(self, service):
-        return self.api_key if service == "gemini" else self.groq_key
+        return self._keys()[textproc.service_provider(service)]
 
     def _values(self):
         return {
-            "api_key": self.api_key,
-            "groq_key": self.groq_key,
+            "keys": self._keys(),
             "service": self.service,
             "spoken": self.spoken,
             "auto_stop": self.auto_stop,
             "trim": self.trim,
+            "no_verbatim": self.no_verbatim,
             "sounds": self.sounds,
             "startup": startup.enabled(),
             "shortcut": self.shortcut,
             "translate": self.translate,
             "language": self.language,
             "translator": self.translator,
-            "correct": self.correct,
+            "corrector": self.corrector,
             "vocabulary": self.vocabulary,
             "app_language": i18n.current,
             "cancel": self.cancel,
@@ -399,19 +413,23 @@ class GeminiSpeech(QObject):
             self.keys.stop()
 
     def save_settings(self, values):
-        self.api_key = values["api_key"].strip()
-        self.groq_key = values["groq_key"].strip()
+        keys = values["keys"]
+        self.api_key = keys["gemini"].strip()
+        self.groq_key = keys["groq"].strip()
+        self.elevenlabs_key = keys["elevenlabs"].strip()
+        self.google_key = keys["google"].strip()
         self.service = values["service"]
         self.spoken = values["spoken"]
         self.auto_stop = values["auto_stop"]
         self.trim = values["trim"]
+        self.no_verbatim = values["no_verbatim"]
         self.sounds = sounds.enabled = values["sounds"]
         record = self.shortcut = values["shortcut"]
         translate = self.translate = values["translate"]
         self.language = values["language"] or "en"
         self.button.set_target(self.language)
         self.translator = values["translator"]
-        self.correct = values["correct"]
+        self.corrector = values["corrector"]
         self.vocabulary = values["vocabulary"]
         if values["app_language"] != i18n.current:
             self.app_language = values["app_language"]
@@ -469,33 +487,24 @@ class GeminiSpeech(QObject):
             self._finish()
             return
         service = self.service
-        if not self._key_for(service):
-            note("toggle no api key")
-            if service == "gemini":
-                missing = messages.API_KEY_MISSING
-            else:
-                missing = messages.GROQ_KEY_MISSING
-            self._overlay("error", missing)
+        corrector = textproc.usable("corrector", self.corrector, service)
+        translator = textproc.usable("translator", self.translator, service) if mode == "translate" else ""
+        needed = [textproc.service_provider(service)]
+        if translator:
+            needed.append(textproc.key_provider(translator))
+        elif corrector != "off":
+            needed.append(textproc.key_provider(corrector))
+        keys = self._keys()
+        missing = next((provider for provider in needed if not keys.get(provider)), None)
+        if missing:
+            note("toggle no %s key" % missing)
+            self._overlay("error", textproc.KEY_MISSING[missing])
             self.show_settings()
             return
         try:
             desktop.remember_focus()
             note("opening %s session" % service)
-            if service == "gemini" and mode == "translate":
-                self._live = speech.LiveSession(self.api_key, self.language)
-                self._live.open()
-            elif service == "gemini":
-                self._live = self._take_live()
-            else:
-                target = ""
-                if mode == "translate":
-                    target = next((name for name, code in LANGUAGES if code == self.language), "English")
-                spoken = next((name for name, code in LANGUAGES if code == self.spoken), "")
-                self._live = groq.GroqSession(
-                    self.groq_key, service, self.spoken, self.trim, target, self.translator,
-                    correct=self.correct, spoken_name=spoken, vocabulary=self.vocabulary,
-                )
-                self._live.open()
+            self._live = self._session(service, corrector, translator)
             self.silence.reset()
             self._mode = mode
             self._from_button = source == "button"
@@ -513,6 +522,33 @@ class GeminiSpeech(QObject):
             return
         self._sync_tray()
         note("toggle returned")
+
+    def _session(self, service, corrector, translator):
+        target = next((name for name, code in LANGUAGES if code == self.language), "English")
+        spoken = next((name for name, code in LANGUAGES if code == self.spoken), "")
+        words = self.vocabulary
+        edit = None
+        if translator == "elevenlabs":
+            edit = ("translate", textproc.translate_instruction(target, words, textproc.EDIT))
+        elif not translator and corrector == "elevenlabs":
+            edit = ("correct", textproc.correct_instruction(spoken, words, textproc.EDIT))
+        if service == "gemini" and translator == "gemini-live":
+            session = speech.LiveSession(self.api_key, self.language)
+            session.open()
+        elif service == "gemini":
+            session = self._take_live()
+        elif service == "elevenlabs":
+            session = elevenlabs.ElevenLabsSession(
+                self.elevenlabs_key, self.spoken, self.trim, words, self.no_verbatim, edit)
+            session.open()
+        elif service == "elevenlabs-live":
+            session = elevenlabs.ElevenLabsLive(self.elevenlabs_key, self.spoken, words, self.no_verbatim, edit)
+            session.open()
+        else:
+            session = groq.GroqSession(self.groq_key, service, self.spoken, self.trim, words)
+            session.open()
+        processor = textproc.Processor(self._keys(), spoken, words)
+        return textproc.Pipeline(session, processor, corrector, translator, target, self.language)
 
     def _on_chunk(self, pcm):
         self.silence.feed(pcm)
@@ -732,7 +768,11 @@ class GeminiSpeech(QObject):
             self.api_key = data["api_key"]
         if data.get("groq_key"):
             self.groq_key = data["groq_key"]
-        if data.get("service") in ("groq", "groq-turbo", "gemini"):
+        if data.get("elevenlabs_key"):
+            self.elevenlabs_key = data["elevenlabs_key"]
+        if data.get("google_key"):
+            self.google_key = data["google_key"]
+        if data.get("service") in ("groq", "groq-turbo", "elevenlabs", "elevenlabs-live", "gemini"):
             self.service = data["service"]
         elif "service" not in data and self.api_key:
             # A config from the original app has only a Gemini key.
@@ -742,10 +782,22 @@ class GeminiSpeech(QObject):
             self.auto_stop = data["auto_stop"]
         if "trim" in data:
             self.trim = bool(data["trim"])
-        if data.get("translator") in groq.TRANSLATORS:
-            self.translator = data["translator"]
-        if "correct" in data:
-            self.correct = bool(data["correct"])
+        if "no_verbatim" in data:
+            self.no_verbatim = bool(data["no_verbatim"])
+        # 2.0 kept a Groq model id and a correction switch; both became engines.
+        old = {"openai/gpt-oss-120b": "groq-120b", "openai/gpt-oss-20b": "groq-20b"}
+        translator = old.get(data.get("translator"), data.get("translator"))
+        if translator in textproc.TRANSLATORS:
+            self.translator = translator
+        if data.get("corrector") in textproc.CORRECTORS:
+            self.corrector = data["corrector"]
+        elif self.service == "gemini":
+            # Gemini had no correction, and translated live.
+            self.corrector = "off"
+            self.translator = "gemini-live"
+        elif "correct" in data:
+            groq_engine = translator if translator in ("groq-120b", "groq-20b") else "groq-120b"
+            self.corrector = groq_engine if data["correct"] else "off"
         if isinstance(data.get("vocabulary"), str):
             self.vocabulary = data["vocabulary"]
         if data.get("app_language"):
@@ -762,13 +814,16 @@ class GeminiSpeech(QObject):
             json.dumps({
                 "api_key": self.api_key,
                 "groq_key": self.groq_key,
+                "elevenlabs_key": self.elevenlabs_key,
+                "google_key": self.google_key,
                 "service": self.service,
                 "spoken": self.spoken,
                 "auto_stop": self.auto_stop,
                 "trim": self.trim,
+                "no_verbatim": self.no_verbatim,
                 "sounds": self.sounds,
                 "translator": self.translator,
-                "correct": self.correct,
+                "corrector": self.corrector,
                 "vocabulary": self.vocabulary,
                 "app_language": self.app_language,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
