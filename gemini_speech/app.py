@@ -123,7 +123,7 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     if sys.platform.startswith("linux"):
-        app.setDesktopFileName("gemini-speech-api")
+        app.setDesktopFileName("speech-dictation")
     # Held here: the garbage collector otherwise frees it, taking the tray and timers.
     tray_app = GeminiSpeech()
     tray_app.start()

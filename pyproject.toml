@@ -1,7 +1,7 @@
 [project]
-name = "gemini-speech-api"
-version = "1.2.0"
-description = "Tray dictation using Gemini 3.5 Transcribe Live."
+name = "speech-dictation"
+version = "2.0.0"
+description = "Tray dictation and translation with Groq Whisper or Gemini Live."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
 build = ["pyinstaller>=6.14"]
 
 [project.scripts]
-gemini-speech-api = "gemini_speech.__main__:main"
+speech-dictation = "gemini_speech.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]

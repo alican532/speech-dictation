@@ -61,23 +61,23 @@ def package_windows():
     if not iscc:
         raise SystemExit("Inno Setup 6 was not found")
     run([iscc, "/DAppVersion=" + version(), os.path.join(ROOT, "packaging", "windows", "setup.iss")])
-    print(os.path.join(DIST, "GeminiSpeechAPI-Setup.exe"))
+    print(os.path.join(DIST, "SpeechDictation-Setup.exe"))
 
 
 def package_mac():
-    app_path = os.path.join(DIST, "GeminiSpeechAPI.app")
+    app_path = os.path.join(DIST, "SpeechDictation.app")
     if not os.path.isdir(app_path):
         raise SystemExit("macOS app was not built")
     staging = os.path.join(DIST, "dmg-stage")
     if os.path.isdir(staging):
         shutil.rmtree(staging)
     os.makedirs(staging)
-    shutil.copytree(app_path, os.path.join(staging, "GeminiSpeechAPI.app"), symlinks=True)
-    dmg = os.path.join(DIST, "GeminiSpeechAPI-macos.dmg")
+    shutil.copytree(app_path, os.path.join(staging, "SpeechDictation.app"), symlinks=True)
+    dmg = os.path.join(DIST, "SpeechDictation-macos.dmg")
     if os.path.exists(dmg):
         os.remove(dmg)
     subprocess.check_call([
-        "hdiutil", "create", "-volname", "GeminiSpeechAPI",
+        "hdiutil", "create", "-volname", "SpeechDictation",
         "-srcfolder", staging, "-ov", "-format", "UDZO", dmg,
     ])
     shutil.rmtree(staging)
@@ -85,7 +85,7 @@ def package_mac():
 
 
 def package_linux():
-    folder = os.path.join(DIST, "GeminiSpeechAPI")
+    folder = os.path.join(DIST, "SpeechDictation")
     if not os.path.isdir(folder):
         raise SystemExit("Linux app was not built")
     for name in ("install.sh", "uninstall.sh"):
@@ -93,17 +93,17 @@ def package_linux():
         dest = os.path.join(folder, name)
         shutil.copy2(src, dest)
         os.chmod(dest, 0o755)
-    archive = os.path.join(DIST, "GeminiSpeechAPI-linux.tar.gz")
+    archive = os.path.join(DIST, "SpeechDictation-linux.tar.gz")
     if os.path.exists(archive):
         os.remove(archive)
     shutil.make_archive(
-        os.path.join(DIST, "GeminiSpeechAPI-linux"),
+        os.path.join(DIST, "SpeechDictation-linux"),
         "gztar",
         DIST,
-        "GeminiSpeechAPI",
+        "SpeechDictation",
     )
     print(archive)
-    print("On the target machine: tar -xzf GeminiSpeechAPI-linux.tar.gz && ./GeminiSpeechAPI/install.sh")
+    print("On the target machine: tar -xzf SpeechDictation-linux.tar.gz && ./SpeechDictation/install.sh")
 
 
 def main():
@@ -112,7 +112,7 @@ def main():
         os.path.join(ROOT, "assets", "icon.png"),
         os.path.join(ROOT, "assets", "icon.ico"),
     )
-    pyinstaller(os.path.join(ROOT, "packaging", "app.spec"), "GeminiSpeechAPI")
+    pyinstaller(os.path.join(ROOT, "packaging", "app.spec"), "SpeechDictation")
     if sys.platform == "win32":
         package_windows()
     elif sys.platform == "darwin":

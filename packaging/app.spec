@@ -79,7 +79,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="GeminiSpeechAPI",
+    name="SpeechDictation",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -99,11 +99,11 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="GeminiSpeechAPI",
+    name="SpeechDictation",
 )
 if sys.platform == "darwin":
     app = BUNDLE(
         coll,
-        name="GeminiSpeechAPI.app",
-        bundle_identifier="com.geminispeech.api",
+        name="SpeechDictation.app",
+        bundle_identifier="com.speechdictation.app",
     )

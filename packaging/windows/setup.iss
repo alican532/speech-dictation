@@ -1,22 +1,23 @@
-#define AppName "GeminiSpeechAPI"
+#define AppName "SpeechDictation"
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "2.0.0"
 #endif
-#define SourceDir "..\..\dist\GeminiSpeechAPI"
+#define SourceDir "..\..\dist\SpeechDictation"
 
 [Setup]
-AppId={{B8E4F2C5-7E31-4A9B-8C26-3F5D9B2E7041}
+; Its own id, so it never upgrades over or uninstalls the original GeminiSpeechAPI.
+AppId={{9825FFCA-3E51-41DC-8D59-1B05FCD825B5}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppName}
-DefaultDirName={localappdata}\GeminiSpeechAPI
+DefaultDirName={localappdata}\SpeechDictation
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\..\dist
-OutputBaseFilename=GeminiSpeechAPI-Setup
+OutputBaseFilename=SpeechDictation-Setup
 SetupIconFile=..\..\assets\icon.ico
-UninstallDisplayIcon={app}\GeminiSpeechAPI.exe
+UninstallDisplayIcon={app}\SpeechDictation.exe
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -24,16 +25,16 @@ WizardStyle=modern
 CloseApplications=force
 RestartApplications=no
 
-[Tasks]
-Name: startup; Description: "Start GeminiSpeechAPI when I sign in"
-
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Icons]
-Name: "{group}\GeminiSpeechAPI"; Filename: "{app}\GeminiSpeechAPI.exe"
-Name: "{userstartup}\GeminiSpeechAPI"; Filename: "{app}\GeminiSpeechAPI.exe"; Tasks: startup
+Name: "{group}\SpeechDictation"; Filename: "{app}\SpeechDictation.exe"
+
+[Registry]
+; "Start with Windows" lives in Settings and writes this value; uninstall removes it.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "SpeechDictation"; Flags: uninsdeletevalue dontcreatekey
 
 [Run]
-Filename: "{app}\GeminiSpeechAPI.exe"; Description: "Launch GeminiSpeechAPI"; Flags: nowait postinstall skipifsilent runasoriginaluser
-Filename: "{app}\GeminiSpeechAPI.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent
+Filename: "{app}\SpeechDictation.exe"; Description: "Launch SpeechDictation"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\SpeechDictation.exe"; Flags: nowait runasoriginaluser; Check: WizardSilent

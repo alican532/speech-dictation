@@ -1,13 +1,13 @@
 #!/bin/sh
 set -e
 SRC=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
-DEST="${XDG_DATA_HOME:-$HOME/.local/share}/GeminiSpeechAPI"
+DEST="${XDG_DATA_HOME:-$HOME/.local/share}/SpeechDictation"
 BIN_DIR="${HOME}/.local/bin"
 APP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 ICON_SRC=""
 
-if [ ! -x "$SRC/GeminiSpeechAPI" ]; then
-  echo "GeminiSpeechAPI binary not found next to install.sh" >&2
+if [ ! -x "$SRC/SpeechDictation" ]; then
+  echo "SpeechDictation binary not found next to install.sh" >&2
   exit 1
 fi
 
@@ -16,7 +16,7 @@ mkdir -p "$DEST" "$BIN_DIR" "$APP_DIR"
 rm -rf "$DEST"
 mkdir -p "$DEST"
 cp -a "$SRC"/. "$DEST"/
-chmod +x "$DEST/GeminiSpeechAPI" "$DEST/install.sh" "$DEST/uninstall.sh" 2>/dev/null || true
+chmod +x "$DEST/SpeechDictation" "$DEST/install.sh" "$DEST/uninstall.sh" 2>/dev/null || true
 
 if [ -f "$DEST/assets/icon.png" ]; then
   ICON_SRC="$DEST/assets/icon.png"
@@ -24,19 +24,19 @@ elif [ -f "$DEST/_internal/assets/icon.png" ]; then
   ICON_SRC="$DEST/_internal/assets/icon.png"
 fi
 
-cat > "$APP_DIR/gemini-speech-api.desktop" <<EOF
+cat > "$APP_DIR/speech-dictation.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=GeminiSpeechAPI
-Comment=Tray dictation with Gemini
-Exec=$DEST/GeminiSpeechAPI
-Icon=${ICON_SRC:-gemini-speech-api}
+Name=SpeechDictation
+Comment=Tray dictation with Groq Whisper and Gemini
+Exec=$DEST/SpeechDictation
+Icon=${ICON_SRC:-speech-dictation}
 Terminal=false
 Categories=Utility;AudioVideo;
 StartupNotify=false
 EOF
 
-ln -sfn "$DEST/GeminiSpeechAPI" "$BIN_DIR/gemini-speech-api"
+ln -sfn "$DEST/SpeechDictation" "$BIN_DIR/speech-dictation"
 
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -50,5 +50,5 @@ if command -v update-desktop-database >/dev/null 2>&1; then
 fi
 
 echo "Installed to $DEST"
-echo "Start from the app menu, or run: gemini-speech-api"
+echo "Start from the app menu, or run: speech-dictation"
 echo "Uninstall with: $DEST/uninstall.sh"

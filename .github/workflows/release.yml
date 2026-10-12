@@ -17,13 +17,13 @@ jobs:
         include:
           - os: windows-latest
             label: Windows
-            asset: dist/GeminiSpeechAPI-Setup.exe
+            asset: dist/SpeechDictation-Setup.exe
           - os: macos-latest
             label: macOS
-            asset: dist/GeminiSpeechAPI-macos.dmg
+            asset: dist/SpeechDictation-macos.dmg
           - os: ubuntu-latest
             label: Linux
-            asset: dist/GeminiSpeechAPI-linux.tar.gz
+            asset: dist/SpeechDictation-linux.tar.gz
     steps:
       - uses: actions/checkout@v4
 

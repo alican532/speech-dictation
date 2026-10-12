@@ -12,9 +12,9 @@ from . import __version__
 REPO = "alican532/speech-dictation"
 API = "https://api.github.com/repos/%s/releases/latest" % REPO
 ASSETS = {
-    "win32": "GeminiSpeechAPI-Setup.exe",
-    "darwin": "GeminiSpeechAPI-macos.dmg",
-    "linux": "GeminiSpeechAPI-linux.tar.gz",
+    "win32": "SpeechDictation-Setup.exe",
+    "darwin": "SpeechDictation-macos.dmg",
+    "linux": "SpeechDictation-linux.tar.gz",
 }
 MIN_SIZE = 1000000
 
@@ -39,7 +39,7 @@ def _ssl_context():
 
 
 def _workdir():
-    path = os.path.join(tempfile.gettempdir(), "GeminiSpeechAPI-update")
+    path = os.path.join(tempfile.gettempdir(), "SpeechDictation-update")
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -64,7 +64,7 @@ def check():
 def download(info):
     target = os.path.join(_workdir(), info["name"])
     part = target + ".part"
-    request = urllib.request.Request(info["url"], headers={"User-Agent": "GeminiSpeechAPI"})
+    request = urllib.request.Request(info["url"], headers={"User-Agent": "SpeechDictation"})
     digest = hashlib.sha256()
     size = 0
     with urllib.request.urlopen(request, timeout=60, context=_ssl_context()) as response, open(part, "wb") as out:
@@ -138,7 +138,7 @@ def _launch_linux(path):
 def _latest():
     request = urllib.request.Request(
         API,
-        headers={"User-Agent": "GeminiSpeechAPI", "Accept": "application/vnd.github+json"},
+        headers={"User-Agent": "SpeechDictation", "Accept": "application/vnd.github+json"},
     )
     with urllib.request.urlopen(request, timeout=20, context=_ssl_context()) as response:
         body = json.loads(response.read().decode("utf-8"))
