@@ -9,8 +9,10 @@ from PyQt6.QtWidgets import (
 
 from . import __version__
 from . import hotkey
+from . import i18n
 from . import messages
 from . import paths
+from .i18n import tr
 
 LANGUAGES = (
     ("English", "en"),
@@ -37,18 +39,11 @@ SERVICES = (
 )
 
 TRANSLATORS = (
-    ("GPT-OSS 120B (recommended)", "openai/gpt-oss-120b"),
-    ("GPT-OSS 20B (fastest)", "openai/gpt-oss-20b"),
+    ("GPT-OSS 120B", "recommended", "openai/gpt-oss-120b"),
+    ("GPT-OSS 20B", "fastest", "openai/gpt-oss-20b"),
 )
 
-AUTO_STOP = (
-    ("Off", 0),
-    ("After 2 s of silence", 2),
-    ("After 3 s of silence", 3),
-    ("After 4 s of silence", 4),
-    ("After 5 s of silence", 5),
-    ("After 8 s of silence", 8),
-)
+AUTO_STOP = (0, 2, 3, 4, 5, 8)
 
 REPO_URL = "https://github.com/alican532/speech-dictation"
 
@@ -77,14 +72,14 @@ class ShortcutField(QLineEdit):
         self._capturing = False
         self._previous = ""
         self.setReadOnly(True)
-        self.setPlaceholderText("Click, then press the keys")
+        self.setPlaceholderText(tr("Click, then press the keys"))
         self.owned = ""
 
     def mousePressEvent(self, event):
         self._previous = self.text()
         self._capturing = True
         self.setText("")
-        self.setPlaceholderText("Press the keys")
+        self.setPlaceholderText(tr("Press the keys"))
         self.setFocus()
         event.accept()
 
@@ -92,7 +87,7 @@ class ShortcutField(QLineEdit):
         if self._capturing:
             self._capturing = False
             self.setText(self._previous)
-            self.setPlaceholderText("Click, then press the keys")
+            self.setPlaceholderText(tr("Click, then press the keys"))
         super().focusOutEvent(event)
 
     def keyPressEvent(self, event):
@@ -110,11 +105,11 @@ class ShortcutField(QLineEdit):
         if not combo:
             return
         self._capturing = False
-        self.setPlaceholderText("Click, then press the keys")
+        self.setPlaceholderText(tr("Click, then press the keys"))
         reason = hotkey.windows_conflict(combo, current=self.owned or self._previous)
         if reason:
             self.setText(self._previous)
-            QMessageBox.warning(self.window(), messages.SHORTCUT_TITLE, reason)
+            QMessageBox.warning(self.window(), tr(messages.SHORTCUT_TITLE), reason)
             return
         self.setText(combo)
 
@@ -146,7 +141,7 @@ def _combo(event, allow_bare=False):
     return "+".join(parts + [name])
 
 
-LABEL_WIDTH = 92
+LABEL_WIDTH = 118
 
 
 def _label(text):
@@ -212,68 +207,73 @@ class Settings(QDialog):
             self.service.addItem(label, code)
         self.groq_key = QLineEdit()
         self.groq_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.groq_key.setPlaceholderText("console.groq.com API key")
+        self.groq_key.setPlaceholderText(tr("console.groq.com API key"))
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("AI Studio API key")
+        self.api_key.setPlaceholderText(tr("AI Studio API key"))
         self.spoken = QComboBox()
-        self.spoken.addItem("Detect automatically", "")
+        self.spoken.addItem(tr("Detect automatically"), "")
         for label, code in LANGUAGES:
-            self.spoken.addItem(label, code)
+            self.spoken.addItem(tr(label), code)
         self.vocabulary = QLineEdit()
-        self.vocabulary.setPlaceholderText("Names and terms, separated by commas")
-        self.correct = QCheckBox("Smart correction: fix misheard words")
+        self.vocabulary.setPlaceholderText(tr("Names and terms, separated by commas"))
+        self.correct = QCheckBox(tr("Smart correction: fix misheard words"))
         self.translator = QComboBox()
-        for label, code in TRANSLATORS:
-            self.translator.addItem(label, code)
+        for label, note, code in TRANSLATORS:
+            self.translator.addItem("%s (%s)" % (label, tr(note)), code)
         self.auto_stop = QComboBox()
-        for label, seconds in AUTO_STOP:
+        for seconds in AUTO_STOP:
+            label = tr("After %d s of silence") % seconds if seconds else tr("Off")
             self.auto_stop.addItem(label, seconds)
-        self.trim = QCheckBox("Cut pauses before sending")
-        self.sounds = QCheckBox("Play a sound when listening starts and stops")
-        self.startup = QCheckBox("Start with Windows")
+        self.trim = QCheckBox(tr("Cut pauses before sending"))
+        self.sounds = QCheckBox(tr("Play a sound when listening starts and stops"))
+        self.startup = QCheckBox(tr("Start with Windows"))
         self.shortcut = ShortcutField()
         self.translate = ShortcutField()
         self.language = QComboBox()
         for label, code in LANGUAGES:
-            self.language.addItem(label, code)
+            self.language.addItem(tr(label), code)
+        self.app_language = QComboBox()
+        for label, code in i18n.LANGUAGES:
+            self.app_language.addItem(label, code)
         self.cancel = ShortcutField(allow_bare=True)
 
         top = _form()
-        top.layout().addRow(_label("Service"), self.service)
+        top.layout().addRow(_label(tr("Service")), self.service)
         layout.addWidget(top)
 
         # Only the chosen service's own settings show; the general ones always do.
         self._groq = _section("Groq", [
-            ("Groq key", self.groq_key),
-            ("I speak", self.spoken),
-            ("Text model", self.translator),
-            ("Vocabulary", self.vocabulary),
+            (tr("Groq key"), self.groq_key),
+            (tr("I speak"), self.spoken),
+            (tr("Text model"), self.translator),
+            (tr("Vocabulary"), self.vocabulary),
             ("", self.correct),
             ("", self.trim),
-        ], "Whisper writes down what you say. The Text model fixes words it misheard "
-           "and does the translating. Vocabulary words are always spelled the way you "
-           "write them.")
+        ], tr("Whisper writes down what you say. The Text model fixes words it misheard "
+              "and does the translating. Vocabulary words are always spelled the way you "
+              "write them."))
         self._gemini = _section("Gemini", [
-            ("Gemini key", self.api_key),
-        ], "Gemini Live writes down what you say as you speak, and translates it live.")
+            (tr("Gemini key"), self.api_key),
+        ], tr("Gemini Live writes down what you say as you speak, and translates it live."))
         general = [
-            ("Record", self.shortcut),
-            ("Translate", self.translate),
-            ("Translate to", self.language),
-            ("Cancel", self.cancel),
-            ("Auto-stop", self.auto_stop),
+            (tr("App language"), self.app_language),
+            (tr("Record"), self.shortcut),
+            (tr("Translate"), self.translate),
+            (tr("Translate to"), self.language),
+            (tr("Cancel"), self.cancel),
+            (tr("Auto-stop"), self.auto_stop),
             ("", self.sounds),
         ]
         if sys.platform == "win32":
             general.append(("", self.startup))
-        self._general = _section("General", general,
-            "The lock on the floating button keeps it listening through pauses until you stop it.")
+        self._general = _section(tr("General"), general,
+            tr("The lock on the floating button keeps it listening through pauses until you stop it."))
         layout.addWidget(self._groq)
         layout.addWidget(self._gemini)
         layout.addWidget(self._general)
 
-        self._save_button = QPushButton("Save")
+        self._save_button = QPushButton(tr("Save"))
         self._save_button.setAutoDefault(False)
         self._save_button.clicked.connect(self._save)
         layout.addWidget(self._save_button)
@@ -301,6 +301,7 @@ class Settings(QDialog):
         for combo, value in (
             (self.language, values["language"]),
             (self.translator, values["translator"]),
+            (self.app_language, values["app_language"]),
             (self.service, values["service"]),
             (self.spoken, values["spoken"]),
             (self.auto_stop, values["auto_stop"]),
@@ -339,21 +340,21 @@ class Settings(QDialog):
         key = self.api_key.text().strip()
         language = self.language.currentData() or "en"
         if record and translate and hotkey.same_shortcut(record, translate):
-            QMessageBox.warning(self, messages.SHORTCUT_TITLE, messages.SHORTCUT_SAME)
+            QMessageBox.warning(self, tr(messages.SHORTCUT_TITLE), tr(messages.SHORTCUT_SAME))
             return
         if record:
             reason = hotkey.windows_conflict(record, current=self.shortcut.owned)
             if reason:
-                QMessageBox.warning(self, messages.SHORTCUT_TITLE, reason)
+                QMessageBox.warning(self, tr(messages.SHORTCUT_TITLE), reason)
                 return
         if translate:
             reason = hotkey.windows_conflict(translate, current=self.translate.owned)
             if reason:
-                QMessageBox.warning(self, messages.SHORTCUT_TITLE, reason)
+                QMessageBox.warning(self, tr(messages.SHORTCUT_TITLE), reason)
                 return
         cancel_reason = hotkey.windows_conflict(cancel, probe=False, current=self.cancel.owned)
         if cancel_reason:
-            QMessageBox.warning(self, messages.SHORTCUT_TITLE, cancel_reason)
+            QMessageBox.warning(self, tr(messages.SHORTCUT_TITLE), cancel_reason)
             return
         self._on_save({
             "api_key": key,
@@ -365,12 +366,13 @@ class Settings(QDialog):
             "sounds": self.sounds.isChecked(),
             "correct": self.correct.isChecked(),
             "vocabulary": self.vocabulary.text().strip(),
+            "app_language": self.app_language.currentData() or "en",
             "startup": self.startup.isChecked(),
             "shortcut": record,
             "translate": translate,
             "language": language,
-            "translator": self.translator.currentData() or TRANSLATORS[0][1],
+            "translator": self.translator.currentData() or TRANSLATORS[0][2],
             "cancel": cancel,
         })
-        self._save_button.setText("Saved")
-        QTimer.singleShot(1500, lambda: self._save_button.setText("Save"))
+        self._save_button.setText(tr("Saved"))
+        QTimer.singleShot(1500, lambda: self._save_button.setText(tr("Save")))

@@ -4,6 +4,7 @@ import threading
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from . import messages
+from .i18n import tr
 
 WIN_KEYS = {
     "space": 0x20, "tab": 0x09, "enter": 0x0D, "esc": 0x1B, "escape": 0x1B,
@@ -76,19 +77,19 @@ def windows_conflict(text, probe=True, current=""):
     if sys.platform != "win32":
         return ""
     if frozenset(parts(text)) in RESERVED:
-        return messages.SHORTCUT_RESERVED % text
+        return tr(messages.SHORTCUT_RESERVED) % text
     if not probe:
         return ""
     mods, key = parse_windows(text)
     if key is None:
-        return messages.SHORTCUT_UNREADABLE
+        return tr(messages.SHORTCUT_UNREADABLE)
     import ctypes
     user32 = ctypes.windll.user32
     slot = 0x5B21
     if user32.RegisterHotKey(None, slot, mods | 0x4000, key):
         user32.UnregisterHotKey(None, slot)
         return ""
-    return messages.SHORTCUT_TAKEN % text
+    return tr(messages.SHORTCUT_TAKEN) % text
 
 
 class Hotkey(QObject):
@@ -126,7 +127,7 @@ class Hotkey(QObject):
             if sys.platform == "win32":
                 mods, key = parse_windows(shortcut)
                 if key is None:
-                    self.failed.emit(messages.SHORTCUT_UNREADABLE_NAMED % shortcut)
+                    self.failed.emit(tr(messages.SHORTCUT_UNREADABLE_NAMED) % shortcut)
                     return False
                 reason = windows_conflict(shortcut)
                 if reason.startswith("Windows already uses"):
@@ -174,7 +175,7 @@ class Hotkey(QObject):
         self._actions = {}
         for index, (mods, key, shortcut, action) in enumerate(bindings, start=1):
             if not user32.RegisterHotKey(None, index, mods | 0x4000, key):
-                self._error = messages.SHORTCUT_TAKEN % shortcut
+                self._error = tr(messages.SHORTCUT_TAKEN) % shortcut
                 for hotkey_id in registered:
                     user32.UnregisterHotKey(None, hotkey_id)
                 return
@@ -194,13 +195,13 @@ class Hotkey(QObject):
         try:
             from pynput import keyboard
         except ImportError:
-            self.failed.emit(messages.PYNPUT_MISSING)
+            self.failed.emit(tr(messages.PYNPUT_MISSING))
             return False
         mapping = {}
         for _mods, _key, shortcut, action in bindings:
             key_name = [part for part in parts(shortcut) if part not in WIN_MODS]
             if len(key_name) != 1:
-                self.failed.emit(messages.SHORTCUT_UNREADABLE_NAMED % shortcut)
+                self.failed.emit(tr(messages.SHORTCUT_UNREADABLE_NAMED) % shortcut)
                 return False
             mapping[_pynput_hotkey(shortcut)] = lambda action=action: self._mark(action)
         self._listener = keyboard.GlobalHotKeys(mapping)

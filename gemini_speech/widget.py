@@ -5,6 +5,8 @@ from PyQt6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 
+from .i18n import tr
+
 MARGIN = 6
 HEIGHT = 48
 PAD = 8
@@ -241,15 +243,15 @@ class FloatingButton(QWidget):
 
     def _tip(self, part):
         if part == "mic":
-            return "Stop" if self.state == "recording" else "Start dictation"
+            return tr("Stop") if self.state == "recording" else tr("Start dictation")
         if part == "translate":
             if self.state == "recording":
-                return "Stop"
-            return "Translate into %s" % self.target
+                return tr("Stop")
+            return tr("Translate into %s") % self.target
         if part == "lock":
-            return "Keep listening until I stop" if not self.locked else "Locked: auto-stop is off"
+            return tr("Keep listening until I stop") if not self.locked else tr("Locked: auto-stop is off")
         if part == "close":
-            return "Hide until the next dictation"
+            return tr("Hide until the next dictation")
         return ""
 
     def paintEvent(self, _event):

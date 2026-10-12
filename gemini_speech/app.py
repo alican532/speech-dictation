@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from . import desktop
 from . import groq
 from . import hotkey
+from . import i18n
 from . import indicator
 from . import messages
 from . import paste
@@ -17,6 +18,7 @@ from . import sounds
 from . import speech
 from . import startup
 from .audio import Recorder, level
+from .i18n import tr
 from .settings import LANGUAGES, Settings
 from .vad import Silence
 from .widget import FloatingButton
@@ -146,6 +148,7 @@ class GeminiSpeech(QObject):
         self.translator = groq.TRANSLATORS[0]
         self.correct = True
         self.vocabulary = "Claude"
+        self.app_language = ""
         self.widget_pos = None
         self.recorder = Recorder()
         self.silence = Silence()
@@ -153,7 +156,6 @@ class GeminiSpeech(QObject):
         self.indicator = indicator.Indicator()
         self.keys = hotkey.Hotkey()
         self.keys.failed.connect(self._fail)
-        self.settings = Settings(self.save_settings, self._settings_closed)
         self._quitting = False
         self.busy = False
         self._job = None
@@ -166,13 +168,15 @@ class GeminiSpeech(QObject):
         self._update_job = None
         self._pending_update = None
         self._load()
+        i18n.set_language(self.app_language or i18n.system_language())
+        self.settings = Settings(self.save_settings, self._settings_closed)
         self.tray = QSystemTrayIcon(self._dot(False))
         QApplication.instance().setWindowIcon(QIcon(paths.ICON))
         self.tray.setToolTip("Speech Dictation")
         self.menu = QMenu()
-        settings = QAction("Settings", self.menu)
+        settings = self.settings_action = QAction(tr("Settings"), self.menu)
         settings.triggered.connect(self.show_settings)
-        quit_ = QAction("Quit", self.menu)
+        quit_ = self.quit_action = QAction(tr("Quit"), self.menu)
         quit_.triggered.connect(self.quit)
         self.menu.addAction(settings)
         self.menu.addAction(quit_)
@@ -226,6 +230,7 @@ class GeminiSpeech(QObject):
             "translator": self.translator,
             "correct": self.correct,
             "vocabulary": self.vocabulary,
+            "app_language": i18n.current,
             "cancel": self.cancel,
         }
 
@@ -251,6 +256,21 @@ class GeminiSpeech(QObject):
         self.widget_pos = (x, y)
         self._store()
 
+    def _retranslate(self):
+        # Every label is set when its widget is built, so the dialog is built again.
+        self.settings_action.setText(tr("Settings"))
+        self.quit_action.setText(tr("Quit"))
+        self._sync_tip()
+        old = self.settings
+        was_open = old.isVisible()
+        where = old.pos()
+        self.settings = Settings(self.save_settings, self._settings_closed)
+        old.hide()
+        old.deleteLater()
+        if was_open:
+            self.show_settings()
+            self.settings.move(where)
+
     def _lock_changed(self, locked):
         self._locked = locked
 
@@ -272,7 +292,7 @@ class GeminiSpeech(QObject):
             self._updating = False
 
     def _update_found(self, version):
-        self.tray.showMessage("GeminiSpeechAPI", "Downloading version %s" % version, QSystemTrayIcon.MessageIcon.Information, 3000)
+        self.tray.showMessage("Speech Dictation", tr("Downloading version %s") % version, QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def _update_ready(self, path, version):
         self._pending_update = (path, version)
@@ -290,10 +310,10 @@ class GeminiSpeech(QObject):
         if sys.platform == "darwin":
             self._pending_update = None
             self._updating = False
-            self.tray.showMessage("GeminiSpeechAPI", "Version %s is ready to install" % version, QSystemTrayIcon.MessageIcon.Information, 5000)
+            self.tray.showMessage("Speech Dictation", tr("Version %s is ready to install") % version, QSystemTrayIcon.MessageIcon.Information, 5000)
             update.launch(path)
             return
-        self.tray.showMessage("GeminiSpeechAPI", "Installing version %s, the app will restart" % version, QSystemTrayIcon.MessageIcon.Information, 3000)
+        self.tray.showMessage("Speech Dictation", tr("Installing version %s, the app will restart") % version, QSystemTrayIcon.MessageIcon.Information, 3000)
         QTimer.singleShot(1500, lambda: self._run_installer(path))
 
     def _run_installer(self, path):
@@ -344,11 +364,15 @@ class GeminiSpeech(QObject):
         self.translator = values["translator"]
         self.correct = values["correct"]
         self.vocabulary = values["vocabulary"]
+        if values["app_language"] != i18n.current:
+            self.app_language = values["app_language"]
+            i18n.set_language(self.app_language)
+            QTimer.singleShot(0, self._retranslate)
         cancel = self.cancel = values["cancel"] or "Esc"
         try:
             startup.set_enabled(values["startup"])
         except OSError as exc:
-            self._overlay("error", "Start with Windows: %s" % exc)
+            self._overlay("error", "%s: %s" % (tr("Start with Windows"), exc))
         self._store()
         self.settings.shortcut.owned = record
         self.settings.translate.owned = translate
@@ -585,9 +609,9 @@ class GeminiSpeech(QObject):
 
     def _sync_tip(self):
         if self._key_for(self.service):
-            self.tray.setToolTip("Speech Dictation is ready")
+            self.tray.setToolTip(tr("Speech Dictation is ready"))
         else:
-            self.tray.setToolTip("Speech Dictation: add an API key")
+            self.tray.setToolTip(tr("Speech Dictation: add an API key"))
 
     def _fail(self, message):
         self._overlay("error", message[:80])
@@ -660,6 +684,8 @@ class GeminiSpeech(QObject):
             self.correct = bool(data["correct"])
         if isinstance(data.get("vocabulary"), str):
             self.vocabulary = data["vocabulary"]
+        if data.get("app_language"):
+            self.app_language = data["app_language"]
         if "sounds" in data:
             self.sounds = sounds.enabled = bool(data["sounds"])
         pos = data.get("widget_pos")
@@ -680,6 +706,7 @@ class GeminiSpeech(QObject):
                 "translator": self.translator,
                 "correct": self.correct,
                 "vocabulary": self.vocabulary,
+                "app_language": self.app_language,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,
@@ -703,7 +730,7 @@ class GeminiSpeech(QObject):
         elif kind == "done":
             self.indicator.show_done()
         elif kind == "error":
-            self.indicator.show_error(message)
+            self.indicator.show_error(tr(message))
         elif kind == "hide":
             self.indicator.dismiss()
 
