@@ -8,6 +8,7 @@ import re
 
 from . import messages
 from . import net
+from . import usage
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
@@ -143,7 +144,7 @@ class Processor:
     def correct(self, engine, text):
         # A correction is a bonus: on any trouble the text is pasted as it was heard.
         try:
-            reply = self._chat(engine, correct_instruction(self._spoken, self._vocabulary), text)
+            reply = self._chat(engine, correct_instruction(self._spoken, self._vocabulary), text, "correct")
         except RuntimeError:
             return text
         return accept_correction(text, reply)
@@ -152,24 +153,24 @@ class Processor:
         if engine == "google":
             reply = self._google(text, target_code)
         else:
-            reply = self._chat(engine, translate_instruction(target_name, self._vocabulary), text)
+            reply = self._chat(engine, translate_instruction(target_name, self._vocabulary), text, "translate")
         if not reply:
             raise RuntimeError(messages.TRANSLATE_FAILED)
         return reply
 
-    def _chat(self, engine, system, text):
+    def _chat(self, engine, system, text, kind):
         provider, model = ENGINES[engine]
         wrapped = "<speech>%s</speech>" % text
         if provider == "groq":
-            reply = self._groq(model, system, wrapped)
+            reply = self._groq(model, system, wrapped, kind)
         else:
-            reply = self._gemini(model, system, wrapped)
+            reply = self._gemini(model, system, wrapped, kind)
         reply = (reply or "").strip()
         if reply.startswith("<speech>") and reply.endswith("</speech>"):
             reply = reply[len("<speech>"):-len("</speech>")].strip()
         return " ".join(reply.split())
 
-    def _groq(self, model, system, text):
+    def _groq(self, model, system, text, kind):
         data = net.post_json("groq", GROQ_CHAT_URL, {
             "model": model,
             "messages": [
@@ -181,12 +182,15 @@ class Processor:
             # Low randomness keeps the same sentence coming back the same way.
             "temperature": 0.2,
         }, {"Authorization": "Bearer " + self._keys.get("groq", "")})
+        used = data.get("usage") or {}
+        usage.record(kind, model, tokens_in=used.get("prompt_tokens", 0),
+                     tokens_out=used.get("completion_tokens", 0))
         try:
             return data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError):
             return ""
 
-    def _gemini(self, model, system, text):
+    def _gemini(self, model, system, text, kind):
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": text}]}],
@@ -206,6 +210,10 @@ class Processor:
                 raise
             del payload["generationConfig"]["thinkingConfig"]
             data = net.post_json("gemini", GEMINI_URL % model, payload, headers)
+        # The -latest names hide which model answered; the reply says.
+        used = data.get("usageMetadata") or {}
+        usage.record(kind, data.get("modelVersion") or model, tokens_in=used.get("promptTokenCount", 0),
+                     tokens_out=used.get("candidatesTokenCount", 0) + used.get("thoughtsTokenCount", 0))
         try:
             parts = data["candidates"][0]["content"]["parts"]
         except (KeyError, IndexError, TypeError):
@@ -216,6 +224,7 @@ class Processor:
         data = net.post_json("google", GOOGLE_URL, {
             "q": text, "target": target_code, "format": "text",
         }, {"x-goog-api-key": self._keys.get("google", "")})
+        usage.record("translate", "google-translate", chars=len(text))
         try:
             return data["data"]["translations"][0]["translatedText"].strip()
         except (KeyError, IndexError, TypeError):

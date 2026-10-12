@@ -3,8 +3,8 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 import sys
 
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QFormLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
-    QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QPushButton, QVBoxLayout, QWidget,
 )
 
 from . import __version__
@@ -217,7 +217,7 @@ def _key_field(placeholder):
 
 
 class Settings(QDialog):
-    def __init__(self, on_save, on_close, on_capture=None):
+    def __init__(self, on_save, on_close, on_capture=None, on_usage=None):
         super().__init__()
         self._on_save = on_save
         self._on_close = on_close
@@ -322,7 +322,17 @@ class Settings(QDialog):
         self._save_button = QPushButton(tr("Save"))
         self._save_button.setAutoDefault(False)
         self._save_button.clicked.connect(self._save)
-        layout.addWidget(self._save_button)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(10)
+        if on_usage is not None:
+            usage = QPushButton(tr("Usage"))
+            usage.setAutoDefault(False)
+            usage.setStyleSheet("QPushButton { background: #2a2f39; border: 1px solid #3c4250; }"
+                                "QPushButton:hover { background: #343a46; }")
+            usage.clicked.connect(on_usage)
+            buttons.addWidget(usage)
+        buttons.addWidget(self._save_button, 1)
+        layout.addLayout(buttons)
         layout.addWidget(VersionLink())
         self.service.currentIndexChanged.connect(self._refresh)
         self.corrector.activated.connect(lambda: self._pick("corrector"))

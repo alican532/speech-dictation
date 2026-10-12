@@ -22,6 +22,7 @@ from . import textproc
 from .audio import Recorder, level
 from .i18n import tr
 from .settings import LANGUAGES, Settings
+from .usage_view import UsageWindow
 from .vad import Silence
 from .widget import FloatingButton
 
@@ -215,16 +216,20 @@ class GeminiSpeech(QObject):
         self._pending_update = None
         self._load()
         i18n.set_language(self.app_language or i18n.system_language())
-        self.settings = Settings(self.save_settings, self._settings_closed, self._capturing_shortcut)
+        self.settings = self._build_settings()
+        self.usage = None
         self.tray = QSystemTrayIcon(self._dot(False))
         QApplication.instance().setWindowIcon(QIcon(paths.ICON))
         self.tray.setToolTip("Speech Dictation")
         self.menu = QMenu()
         settings = self.settings_action = QAction(tr("Settings"), self.menu)
         settings.triggered.connect(self.show_settings)
+        usage_ = self.usage_action = QAction(tr("Usage"), self.menu)
+        usage_.triggered.connect(self.show_usage)
         quit_ = self.quit_action = QAction(tr("Quit"), self.menu)
         quit_.triggered.connect(self.quit)
         self.menu.addAction(settings)
+        self.menu.addAction(usage_)
         self.menu.addAction(quit_)
         self.button = FloatingButton()
         self.button.toggled.connect(lambda: self.toggle(source="button"))
@@ -314,14 +319,22 @@ class GeminiSpeech(QObject):
     def _retranslate(self):
         # Every label is set when its widget is built, so the dialog is built again.
         self.settings_action.setText(tr("Settings"))
+        self.usage_action.setText(tr("Usage"))
         self.quit_action.setText(tr("Quit"))
         self._sync_tip()
         old = self.settings
         was_open = old.isVisible()
         where = old.pos()
-        self.settings = Settings(self.save_settings, self._settings_closed, self._capturing_shortcut)
+        self.settings = self._build_settings()
         old.hide()
         old.deleteLater()
+        if self.usage is not None:
+            usage_open = self.usage.isVisible()
+            self.usage.hide()
+            self.usage.deleteLater()
+            self.usage = None
+            if usage_open:
+                self.show_usage()
         if was_open:
             self.show_settings()
             self.settings.move(where)
@@ -381,6 +394,16 @@ class GeminiSpeech(QObject):
         self._pending_update = None
         self._updating = False
         self._overlay("error", "Update failed")
+
+    def _build_settings(self):
+        return Settings(self.save_settings, self._settings_closed, self._capturing_shortcut, self.show_usage)
+
+    def show_usage(self):
+        if self.usage is None:
+            self.usage = UsageWindow()
+        self.usage.show()
+        self.usage.raise_()
+        self.usage.activateWindow()
 
     def show_settings(self):
         self.settings.set_values(self._values())

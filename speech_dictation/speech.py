@@ -9,8 +9,11 @@ import threading
 import urllib.parse
 
 from . import messages
+from . import usage
 
 HOST = "generativelanguage.googleapis.com"
+TRANSCRIBE_MODEL = "gemini-3.5-transcribe-live"
+TRANSLATE_MODEL = "gemini-3.5-live-translate-preview"
 PATH = (
     "/ws/google.ai.generativelanguage.v1beta.GenerativeService."
     "BidiGenerateContent"
@@ -136,6 +139,11 @@ class LiveSession:
                     self.error = detail[:80] or messages.REQUEST_FAILED
         finally:
             self._close()
+            # Streamed audio is billed whatever became of the take. A warm
+            # session that was never used sent nothing.
+            if self._sent:
+                usage.record("speech", TRANSLATE_MODEL if self._language else TRANSCRIBE_MODEL,
+                             seconds=self._sent / (RATE * WIDTH), translated=bool(self._language))
             self.done.set()
 
     def _send_audio(self, pcm):
@@ -271,7 +279,7 @@ class LiveSession:
         if self._language:
             return {
                 "setup": {
-                    "model": "models/gemini-3.5-live-translate-preview",
+                    "model": "models/" + TRANSLATE_MODEL,
                     "generationConfig": {
                         "responseModalities": ["AUDIO"],
                         "translationConfig": {
@@ -285,7 +293,7 @@ class LiveSession:
             }
         return {
             "setup": {
-                "model": "models/gemini-3.5-transcribe-live",
+                "model": "models/" + TRANSCRIBE_MODEL,
                 "generationConfig": {"responseModalities": ["TEXT"]},
                 "inputAudioTranscription": {"mode": "SMART"},
             },

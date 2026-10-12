@@ -13,6 +13,7 @@ LANGUAGES = (
 TR = {
     # Tray
     "Settings": "Ayarlar",
+    "Usage": "Kullanım",
     "Quit": "Çıkış",
     "Speech Dictation is ready": "Speech Dictation hazır",
     "Speech Dictation: add an API key": "Speech Dictation: API anahtarı ekleyin",
@@ -145,6 +146,40 @@ TR = {
     "Record and translate need different shortcuts.": "Kayıt ve çeviri için farklı kısayollar gerekir.",
     "macOS and Linux need pynput (pip install pynput, or reinstall the Linux build)":
         "macOS ve Linux için pynput gerekir (pip install pynput ya da Linux sürümünü yeniden kurun)",
+
+    # Usage
+    "Today": "Bugün",
+    "Last 7 days": "Son 7 gün",
+    "This month": "Bu ay",
+    "Last 30 days": "Son 30 gün",
+    "All time": "Tümü",
+    "Estimated cost": "Tahmini maliyet",
+    "Dictations": "Dikte",
+    "Audio": "Ses",
+    "Model": "Model",
+    "Used for": "Kullanım amacı",
+    "Requests": "İstek",
+    "Amount": "Miktar",
+    "Dictation": "Dikte",
+    "Fixing words": "Düzeltme",
+    "Translating": "Çeviri",
+    "%d s": "%d sn",
+    "%.1f min": "%.1f dk",
+    "%.1f h": "%.1f sa",
+    "%s tokens": "%s token",
+    "%s characters": "%s karakter",
+    "no price": "fiyat yok",
+    "Nothing used in this period yet.": "Bu dönemde henüz kullanım yok.",
+    "Estimates at list prices of %s. Free tiers and free monthly allowances are "
+    "not taken off, because the app cannot see whether they still apply. "
+    "Requests from before this page existed are not counted. The exact bill "
+    "is on each provider's page:":
+        "%s tarihli liste fiyatlarıyla tahmindir. Ücretsiz katman ve aylık ücretsiz kotalar "
+        "düşülmez, çünkü uygulama bunların hâlâ geçerli olup olmadığını göremez. Bu sayfadan "
+        "önceki istekler sayılmaz. Kesin tutar her sağlayıcının kendi sayfasındadır:",
+    "Clear history": "Geçmişi temizle",
+    "Delete the whole usage history on this computer? This cannot be undone.":
+        "Bu bilgisayardaki tüm kullanım geçmişi silinsin mi? Geri alınamaz.",
 }
 
 TABLES = {"tr": TR}

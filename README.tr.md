@@ -34,6 +34,7 @@ ElevenLabs düzenleme yalnızca ElevenLabs metinlerinde, Gemini Live çevirisi y
 - **Dolgu kelimeleri (ElevenLabs).** "ıı", "şey" ve yarım kalan başlangıçlar çıkarılır.
 - **Akıllı düzeltme.** Seçilen motor, servisin yanlış duyduğu kelimeleri cümlenin bütününe bakarak düzeltir ve gerisine dokunmaz. Cevabı yeniden yazılmış gibi görünürse ya da istek başarısız olursa metin duyulduğu gibi yapıştırılır.
 - **Sözlük.** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak, ElevenLabs'e kulak vereceği anahtar terimler olarak, düzeltme ve çeviri motorlarına da gider.
+- **Kullanım sayfası.** Tepsi menüsünden ya da Ayarlar'daki Kullanım butonundan açılır. Bugün, son 7 gün, bu ay, son 30 gün ya da tüm zamanlar için her modelde kaç istek yapıldığını, ne kadar ses, token ya da karakter kullanıldığını ve bunun liste fiyatıyla ne tuttuğunu gösterir. Uygulama ücretsiz katman ve ücretsiz kotaların hâlâ geçerli olup olmadığını göremediği için bunlar düşülmez; rakamlar tahmindir, kesin tutar her sağlayıcının kendi sayfasındadır. Yalnızca miktarlar saklanır, metin asla saklanmaz; dosya `config.json` ile aynı klasördeki `usage.jsonl` dosyasıdır. Fiyatlar `speech_dictation/usage.py` içindeki tek bir tabloda durur.
 - **İki arayüz dili:** İngilizce ve Türkçe. Siz seçene kadar sistem dilini kullanır.
 - **Oturum açılınca başlat**, Ayarlar'da bir seçenek (Windows'ta Run kaydı, macOS'ta LaunchAgent, Linux'ta autostart dosyası).
 
@@ -115,7 +116,7 @@ Ayarların saklandığı yer:
 - **Gemini:** Ücretsiz katmanda ücret yoktur; bu katmanda Google içeriği ürünlerini geliştirmek için kullanabilir. Ücretli katmanda dikte dakikası yaklaşık $0,009, çeviri dakikası yaklaşık $0,037'dir. Gemini Flash-Lite ve Flash metin istekleri bir sentin çok küçük bir kısmı tutar.
 - **Google Translate:** Milyon karakter başına $20; her ay ilk 500.000 karakter ücretsiz.
 
-Güncel rakamlar için sağlayıcıların fiyat sayfalarına bakın. Ses yalnızca seçtiğiniz servise, metin yalnızca seçtiğiniz motorlara gider; uygulamanın kendine ait bir sunucusu yoktur.
+Güncel rakamlar için sağlayıcıların fiyat sayfalarına bakın; kullanım sayfası kendi kullanımınızı bu fiyatlarla toplar. Ses yalnızca seçtiğiniz servise, metin yalnızca seçtiğiniz motorlara gider; uygulamanın kendine ait bir sunucusu yoktur.
 
 ## Kurulum dosyası oluşturma
 

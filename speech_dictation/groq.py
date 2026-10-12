@@ -1,6 +1,7 @@
 from . import messages
 from . import net
 from . import textproc
+from . import usage
 from .batch import BatchSession, wav
 
 URL = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -32,4 +33,5 @@ class GroqSession(BatchSession):
             fields.append(("prompt", (", ".join(self._words) + ".")[:MAX_PROMPT]))
         body, content_type = net.multipart(fields, "speech.wav", "audio/wav", wav(pcm))
         data = net.post("groq", URL, body, content_type, {"Authorization": "Bearer " + self._key})
+        usage.record("speech", self._model, seconds=len(pcm) / 32000)
         return (data.get("text") or "").strip()

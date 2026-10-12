@@ -34,6 +34,7 @@ ElevenLabs edit works only on ElevenLabs transcripts and Gemini Live translation
 - **Filler words (ElevenLabs).** "um", "uh" and false starts are left out.
 - **Smart correction.** The chosen engine fixes words the service misheard, judging by the whole sentence, and leaves everything else alone. If its reply looks like a rewrite, or the request fails, the text is pasted as it was heard.
 - **Vocabulary.** Names and terms you use often, such as `Claude`. They go to Whisper as a spelling hint, to ElevenLabs as key terms it listens for, and to the correction and translation engines.
+- **Usage page.** Opens from the tray menu or the Usage button in Settings. It shows, per model, how many requests were made, how much audio, tokens or characters they used and what that costs at list price, for today, the last 7 days, this month, the last 30 days or all time. Free tiers and free allowances are not taken off, since the app cannot see whether they still apply, so the figures are estimates; the exact bill is on each provider's page. Only amounts are kept, never the text, in `usage.jsonl` next to `config.json`. The prices live in one table in `speech_dictation/usage.py`.
 - **Two interface languages:** English and Turkish. The app follows the system language until you pick one.
 - **Start at sign-in**, an option in Settings (a Run entry on Windows, a LaunchAgent on macOS, an autostart entry on Linux).
 
@@ -115,7 +116,7 @@ On first start a config left by the original GeminiSpeechAPI app is copied over 
 - **Gemini:** free of charge on the free tier, where Google may use the content to improve its products. On the paid tier, dictation is about $0.009 and translation about $0.037 per minute. Gemini Flash-Lite and Flash text calls cost a fraction of a cent.
 - **Google Translate:** $20 per million characters, the first 500,000 characters a month free.
 
-Check the providers' pricing pages for current figures. Audio goes only to the service you pick, and the text only to the engines you pick; the app has no server of its own.
+Check the providers' pricing pages for current figures; the usage page adds up your own use at these prices. Audio goes only to the service you pick, and the text only to the engines you pick; the app has no server of its own.
 
 ## Building an installer
 

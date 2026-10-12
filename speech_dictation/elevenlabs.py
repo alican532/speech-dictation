@@ -11,6 +11,7 @@ from . import messages
 from . import net
 from . import speech
 from . import textproc
+from . import usage
 from .audio import level
 from .batch import BatchSession
 
@@ -81,6 +82,8 @@ class ElevenLabsSession(BatchSession):
             fields.append(("transcript_edit", self._edit[1]))
         body, content_type = net.multipart(fields, "speech.pcm", "application/octet-stream", pcm)
         data = net.post("elevenlabs", URL, body, content_type, {"xi-api-key": self._key}, timeout=60)
+        usage.record("speech", BATCH_MODEL, seconds=len(pcm) / (RATE * WIDTH),
+                     keyterms=bool(self._terms), edit=bool(self._edit))
         text = (data.get("text") or "").strip()
         return _edited(self._edit, text, _edit_text(data.get("edited_transcript")))
 
@@ -199,6 +202,10 @@ class ElevenLabsLive:
             if not self.text and not self.error and not self._closing:
                 self.error = messages.RECORDING_TOO_LONG if self.limit_hit.is_set() else messages.NO_SPEECH
             self._close()
+            # Streamed audio is billed whatever became of the take.
+            if self._sent:
+                usage.record("speech", LIVE_MODEL, seconds=self._sent / (RATE * WIDTH),
+                             keyterms=bool(self._terms))
             self.done.set()
 
     def _end(self):
