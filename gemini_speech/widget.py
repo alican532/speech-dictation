@@ -14,16 +14,16 @@ SIDE = 32
 CLOSE = 26
 WIDTH = PAD + SIDE + GAP + MIC + GAP + CLOSE + PAD
 
-BG = QColor(28, 31, 37, 242)
-EDGE = QColor(255, 255, 255, 28)
-SHADOW = QColor(0, 0, 0, 70)
-IDLE = QColor(48, 53, 63)
-HOVER = QColor(62, 68, 80)
+BG = QColor(28, 31, 37, 150)
+EDGE = QColor(255, 255, 255, 40)
+SHADOW = QColor(0, 0, 0, 35)
+IDLE = QColor(48, 53, 63, 190)
+HOVER = QColor(62, 68, 80, 210)
 REC = QColor(240, 78, 82)
 BUSY = QColor(120, 170, 255)
 LOCK = QColor(245, 180, 70)
 GLYPH = QColor(236, 238, 242)
-DIM = QColor(150, 156, 168)
+DIM = QColor(222, 226, 234)
 
 # Segoe Fluent Icons ships with Windows 11, Segoe MDL2 Assets with Windows 10.
 _GLYPHS = {"mic": "\uE720", "lock": "\uE72E", "unlock": "\uE785", "close": "\uE8BB"}
