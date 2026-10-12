@@ -90,6 +90,7 @@ TR = {
     "Add a Gemini API key in Settings": "Ayarlar'dan bir Gemini API anahtarı ekleyin",
     "No speech detected": "Konuşma algılanmadı",
     "Copied. Could not paste": "Kopyalandı ama yapıştırılamadı",
+    "Click the window you want to type in first": "Önce yazacağınız pencereye tıklayın",
     "Recording is too short": "Kayıt çok kısa",
     "Live transcription stops at 10 minutes": "Kayıt en fazla 10 dakika sürebilir",
     "No microphone": "Mikrofon bulunamadı",

@@ -153,6 +153,7 @@ class GeminiSpeech(QObject):
         self.recorder = Recorder()
         self.silence = Silence()
         self._locked = False
+        self._capturing = False
         self.indicator = indicator.Indicator()
         self.keys = hotkey.Hotkey()
         self.keys.failed.connect(self._fail)
@@ -169,7 +170,7 @@ class GeminiSpeech(QObject):
         self._pending_update = None
         self._load()
         i18n.set_language(self.app_language or i18n.system_language())
-        self.settings = Settings(self.save_settings, self._settings_closed)
+        self.settings = Settings(self.save_settings, self._settings_closed, self._capturing_shortcut)
         self.tray = QSystemTrayIcon(self._dot(False))
         QApplication.instance().setWindowIcon(QIcon(paths.ICON))
         self.tray.setToolTip("Speech Dictation")
@@ -264,7 +265,7 @@ class GeminiSpeech(QObject):
         old = self.settings
         was_open = old.isVisible()
         where = old.pos()
-        self.settings = Settings(self.save_settings, self._settings_closed)
+        self.settings = Settings(self.save_settings, self._settings_closed, self._capturing_shortcut)
         old.hide()
         old.deleteLater()
         if was_open:
@@ -328,7 +329,6 @@ class GeminiSpeech(QObject):
         self._overlay("error", "Update failed")
 
     def show_settings(self):
-        self.keys.stop()
         self.settings.set_values(self._values())
         self.settings.show()
         self.settings.raise_()
@@ -340,8 +340,17 @@ class GeminiSpeech(QObject):
         self._arm_shortcut()
         self._sync_tip()
 
+    def _capturing_shortcut(self, on):
+        self._capturing = on
+        self._arm_shortcut()
+
+    def _settings_in_front(self):
+        return self.settings.isVisible() and self.settings.isActiveWindow()
+
     def _arm_shortcut(self):
-        if self.settings.isVisible():
+        # Shortcuts stay on while Settings is open, except while a shortcut
+        # field waits for keys: Windows would hand them to the hotkey instead.
+        if self._capturing:
             self.keys.stop()
             return
         if self.shortcut or self.translate:
@@ -407,8 +416,13 @@ class GeminiSpeech(QObject):
 
     def toggle(self, mode="record"):
         from .crashlog import note
-        if self.busy or self.settings.isVisible():
+        if self.busy:
             note("toggle skipped")
+            return
+        if self._settings_in_front():
+            # The text would land in a Settings field, perhaps the key field.
+            note("toggle skipped: settings in front")
+            self._overlay("error", messages.SETTINGS_IN_FRONT)
             return
         if self.recorder.active:
             self._finish()
@@ -532,6 +546,10 @@ class GeminiSpeech(QObject):
         self._ensure_warm()
         if not (text or "").strip():
             self._overlay("error", messages.NO_SPEECH)
+        elif self._settings_in_front():
+            # Settings came to the front while listening, so the text is only copied.
+            QApplication.clipboard().setText(text.strip())
+            self._overlay("error", messages.PASTE_FAILED)
         elif paste.paste_text(text):
             self._overlay("done")
         else:

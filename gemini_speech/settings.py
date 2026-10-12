@@ -74,10 +74,20 @@ class ShortcutField(QLineEdit):
         self.setReadOnly(True)
         self.setPlaceholderText(tr("Click, then press the keys"))
         self.owned = ""
+        # Told when capture starts and ends: the app's shortcuts would
+        # otherwise take the keys before this field sees them.
+        self.on_capture = None
+
+    def _set_capturing(self, on):
+        if self._capturing == on:
+            return
+        self._capturing = on
+        if self.on_capture is not None:
+            self.on_capture(on)
 
     def mousePressEvent(self, event):
         self._previous = self.text()
-        self._capturing = True
+        self._set_capturing(True)
         self.setText("")
         self.setPlaceholderText(tr("Press the keys"))
         self.setFocus()
@@ -85,7 +95,7 @@ class ShortcutField(QLineEdit):
 
     def focusOutEvent(self, event):
         if self._capturing:
-            self._capturing = False
+            self._set_capturing(False)
             self.setText(self._previous)
             self.setPlaceholderText(tr("Click, then press the keys"))
         super().focusOutEvent(event)
@@ -98,13 +108,13 @@ class ShortcutField(QLineEdit):
         if event.key() in self._MODS:
             return
         if event.key() == Qt.Key.Key_Escape:
-            self._capturing = False
+            self._set_capturing(False)
             self.setText(self._previous)
             return
         combo = _combo(event, self._allow_bare)
         if not combo:
             return
-        self._capturing = False
+        self._set_capturing(False)
         self.setPlaceholderText(tr("Click, then press the keys"))
         reason = hotkey.windows_conflict(combo, current=self.owned or self._previous)
         if reason:
@@ -180,10 +190,11 @@ def _section(title, rows, note=""):
 
 
 class Settings(QDialog):
-    def __init__(self, on_save, on_close):
+    def __init__(self, on_save, on_close, on_capture=None):
         super().__init__()
         self._on_save = on_save
         self._on_close = on_close
+        self._on_capture = on_capture
         self.setWindowTitle("Speech Dictation")
         self.setWindowIcon(QIcon(paths.ICON))
         self.setMinimumWidth(440)
@@ -237,6 +248,8 @@ class Settings(QDialog):
         for label, code in i18n.LANGUAGES:
             self.app_language.addItem(label, code)
         self.cancel = ShortcutField(allow_bare=True)
+        for field in (self.shortcut, self.translate, self.cancel):
+            field.on_capture = on_capture
 
         top = _form()
         top.layout().addRow(_label(tr("Service")), self.service)
