@@ -6,6 +6,7 @@ import json
 import queue
 import re
 import threading
+import time
 
 from . import messages
 from . import net
@@ -81,10 +82,15 @@ class ElevenLabsSession(BatchSession):
         if self._edit:
             fields.append(("transcript_edit", self._edit[1]))
         body, content_type = net.multipart(fields, "speech.pcm", "application/octet-stream", pcm)
-        data = net.post("elevenlabs", URL, body, content_type, {"xi-api-key": self._key}, timeout=60)
-        usage.record("speech", BATCH_MODEL, seconds=len(pcm) / (RATE * WIDTH),
-                     keyterms=bool(self._terms), edit=bool(self._edit))
+        extra = {"keyterms": bool(self._terms), "edit": bool(self._edit)}
+        started = time.monotonic()
+        try:
+            data = net.post("elevenlabs", URL, body, content_type, {"xi-api-key": self._key}, timeout=60)
+        except RuntimeError:
+            self._log(BATCH_MODEL, pcm, started, **extra)
+            raise
         text = (data.get("text") or "").strip()
+        self._log(BATCH_MODEL, pcm, started, text, **extra)
         return _edited(self._edit, text, _edit_text(data.get("edited_transcript")))
 
 
@@ -106,6 +112,8 @@ class ElevenLabsLive:
         self._closing = False
         self._committed = []
         self._partial = ""
+        self._stopped_at = 0.0
+        self.take = ""
         self.text = ""
         self.error = ""
         self.limit_hit = threading.Event()
@@ -125,6 +133,7 @@ class ElevenLabsLive:
             self._queue.put(pcm)
 
     def finish(self):
+        self._stopped_at = time.monotonic()
         self._queue.put(None)
         if self._thread is not None:
             self._thread.join(timeout=25)
@@ -205,7 +214,9 @@ class ElevenLabsLive:
             # Streamed audio is billed whatever became of the take.
             if self._sent:
                 usage.record("speech", LIVE_MODEL, seconds=self._sent / (RATE * WIDTH),
-                             keyterms=bool(self._terms))
+                             keyterms=bool(self._terms), status=usage_status(self),
+                             wait=time.monotonic() - self._stopped_at if self._stopped_at else 0,
+                             take=self.take)
             self.done.set()
 
     def _end(self):
@@ -318,6 +329,17 @@ class ElevenLabsLive:
             sock.close()
         except Exception:
             pass
+
+
+def usage_status(session):
+    """How a streamed take ended, for the usage log."""
+    if session._closing:
+        return "cancelled"
+    if textproc.clean(session.text):
+        return "done"
+    if session.error and session.error != messages.NO_SPEECH:
+        return "failed"
+    return "empty"
 
 
 def _edit_text(value):

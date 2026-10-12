@@ -44,6 +44,8 @@ class LiveSession:
         self._end_seen = False
         self._completed = False
         self._translated = ""
+        self._stopped_at = 0.0
+        self.take = ""
         self._heard_in = 0.0
         self._heard_out = 0.0
         self.limit_hit = threading.Event()
@@ -67,6 +69,7 @@ class LiveSession:
             self._queue.put(pcm)
 
     def finish(self):
+        self._stopped_at = _now()
         self._queue.put(None)
         if self._thread is not None:
             self._thread.join(timeout=25)
@@ -143,8 +146,19 @@ class LiveSession:
             # session that was never used sent nothing.
             if self._sent:
                 usage.record("speech", TRANSLATE_MODEL if self._language else TRANSCRIBE_MODEL,
-                             seconds=self._sent / (RATE * WIDTH), translated=bool(self._language))
+                             seconds=self._sent / (RATE * WIDTH), translated=bool(self._language),
+                             status=self._usage_status(), take=self.take,
+                             wait=_now() - self._stopped_at if self._stopped_at else 0)
             self.done.set()
+
+    def _usage_status(self):
+        if self._closing:
+            return "cancelled"
+        if self.text.strip():
+            return "done"
+        if self.error and self.error not in (messages.NO_SPEECH, messages.RECORDING_TOO_SHORT):
+            return "failed"
+        return "empty"
 
     def _send_audio(self, pcm):
         self._sent += len(pcm)

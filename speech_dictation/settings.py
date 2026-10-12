@@ -3,7 +3,7 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 import sys
 
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
     QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -228,7 +228,7 @@ class Settings(QDialog):
         self.setStyleSheet(
             "QDialog { background: #17191e; }"
             "QLabel { color: #e7e9ee; font-size: 13px; }"
-            "QLineEdit, QComboBox { background: #242830; color: #f2f4f8; border: 1px solid #3c4250;"
+            "QLineEdit, QComboBox, QDoubleSpinBox { background: #242830; color: #f2f4f8; border: 1px solid #3c4250;"
             " border-radius: 8px; padding: 8px 10px; }"
             "QComboBox QAbstractItemView { background: #242830; color: #f2f4f8;"
             " selection-background-color: #3b82f6; }"
@@ -265,6 +265,14 @@ class Settings(QDialog):
         for seconds in AUTO_STOP:
             label = tr("After %d s of silence") % seconds if seconds else tr("Off")
             self.auto_stop.addItem(label, seconds)
+        self.budget = QDoubleSpinBox()
+        self.budget.setRange(0, 10000)
+        self.budget.setDecimals(2)
+        self.budget.setSingleStep(1)
+        self.budget.setPrefix("$")
+        # 0 is off; it shows as a word, not as $0.00.
+        self.budget.setSpecialValueText(tr("Off"))
+        self.budget.setToolTip(tr("A tray message when this month's estimated cost passes this amount"))
         self.trim = QCheckBox(tr("Cut pauses before sending"))
         self.no_verbatim = QCheckBox(tr("Leave out filler words (um, uh)"))
         self.sounds = QCheckBox(tr("Play a sound when listening starts and stops"))
@@ -311,11 +319,13 @@ class Settings(QDialog):
             (tr("Translate"), self.translate),
             (tr("Cancel"), self.cancel),
             (tr("Auto-stop"), self.auto_stop),
+            (tr("Monthly budget"), self.budget),
             ("", self.sounds),
             ("", self.startup),
         ]
         self._general = _section(tr("General"), general,
-            tr("The lock on the floating button keeps it listening through pauses until you stop it."))
+            tr("The lock on the floating button keeps it listening through pauses until you stop it. "
+               "The monthly budget warns you once a month when the estimated cost on the Usage page passes it."))
         for box in (self._keys_box, self._speech, self._text, self._general):
             layout.addWidget(box)
 
@@ -407,6 +417,7 @@ class Settings(QDialog):
         self.no_verbatim.setChecked(values["no_verbatim"])
         self.sounds.setChecked(values["sounds"])
         self.vocabulary.setText(values["vocabulary"])
+        self.budget.setValue(values["budget"])
         self.startup.setChecked(values["startup"])
         self._refresh()
 
@@ -462,6 +473,7 @@ class Settings(QDialog):
             "corrector": self._chosen["corrector"] or "off",
             "translator": self._chosen["translator"] or self.translator.currentData(),
             "vocabulary": self.vocabulary.text().strip(),
+            "budget": round(self.budget.value(), 2),
             "app_language": self.app_language.currentData() or "en",
             "startup": self.startup.isChecked(),
             "shortcut": record,

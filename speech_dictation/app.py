@@ -19,6 +19,7 @@ from . import sounds
 from . import speech
 from . import startup
 from . import textproc
+from . import usage
 from .audio import Recorder, level
 from .i18n import tr
 from .settings import LANGUAGES, Settings
@@ -193,6 +194,10 @@ class GeminiSpeech(QObject):
         self.corrector = "groq-120b"
         self.translator = "groq-120b"
         self.vocabulary = "Claude"
+        # Monthly estimated cost that brings a warning; 0 is off.
+        self.budget = 0.0
+        self.budget_warned = ""
+        self._message = ""
         self.app_language = ""
         self.widget_pos = None
         self.recorder = Recorder()
@@ -240,6 +245,7 @@ class GeminiSpeech(QObject):
         self.button.moved.connect(self._button_moved)
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._activated)
+        self.tray.messageClicked.connect(self._message_clicked)
         self.cancel_watch = QTimer()
         self.cancel_watch.setInterval(40)
         self.cancel_watch.timeout.connect(self._watch_cancel)
@@ -290,6 +296,7 @@ class GeminiSpeech(QObject):
             "translator": self.translator,
             "corrector": self.corrector,
             "vocabulary": self.vocabulary,
+            "budget": self.budget,
             "app_language": i18n.current,
             "cancel": self.cancel,
         }
@@ -360,6 +367,7 @@ class GeminiSpeech(QObject):
             self._updating = False
 
     def _update_found(self, version):
+        self._message = ""
         self.tray.showMessage("Speech Dictation", tr("Downloading version %s") % version, QSystemTrayIcon.MessageIcon.Information, 3000)
 
     def _update_ready(self, path, version):
@@ -378,9 +386,11 @@ class GeminiSpeech(QObject):
         if sys.platform == "darwin":
             self._pending_update = None
             self._updating = False
+            self._message = ""
             self.tray.showMessage("Speech Dictation", tr("Version %s is ready to install") % version, QSystemTrayIcon.MessageIcon.Information, 5000)
             update.launch(path)
             return
+        self._message = ""
         self.tray.showMessage("Speech Dictation", tr("Installing version %s, the app will restart") % version, QSystemTrayIcon.MessageIcon.Information, 3000)
         QTimer.singleShot(1500, lambda: self._run_installer(path))
 
@@ -400,7 +410,7 @@ class GeminiSpeech(QObject):
 
     def show_usage(self):
         if self.usage is None:
-            self.usage = UsageWindow()
+            self.usage = UsageWindow(lambda: self.budget)
         self.usage.show()
         self.usage.raise_()
         self.usage.activateWindow()
@@ -454,6 +464,11 @@ class GeminiSpeech(QObject):
         self.translator = values["translator"]
         self.corrector = values["corrector"]
         self.vocabulary = values["vocabulary"]
+        if values["budget"] != self.budget:
+            # A new amount may warn again this month.
+            self.budget = values["budget"]
+            self.budget_warned = ""
+            QTimer.singleShot(0, self._check_budget)
         if values["app_language"] != i18n.current:
             self.app_language = values["app_language"]
             i18n.set_language(self.app_language)
@@ -570,7 +585,9 @@ class GeminiSpeech(QObject):
         else:
             session = groq.GroqSession(self.groq_key, service, self.spoken, self.trim, words)
             session.open()
-        processor = textproc.Processor(self._keys(), spoken, words)
+        # The requests of one dictation share an id in the usage log.
+        session.take = take = usage.new_take()
+        processor = textproc.Processor(self._keys(), spoken, words, take)
         return textproc.Pipeline(session, processor, corrector, translator, target, self.language)
 
     def _on_chunk(self, pcm):
@@ -643,7 +660,32 @@ class GeminiSpeech(QObject):
         if live is not None:
             live.cancel()
 
+    def _check_budget(self):
+        if not self.budget or self._quitting:
+            return
+        mark = "%s:%g" % (__import__("time").strftime("%Y-%m"), self.budget)
+        if self.budget_warned == mark:
+            return
+        spent = usage.month_total()
+        if spent < self.budget:
+            return
+        self.budget_warned = mark
+        self._store()
+        from .usage_view import money
+        self._message = "usage"
+        self.tray.showMessage(
+            "Speech Dictation",
+            tr("This month's estimated cost is %s, past your %s budget. Click to see the usage.")
+            % (money(spent), money(self.budget)),
+            QSystemTrayIcon.MessageIcon.Warning, 10000)
+
+    def _message_clicked(self):
+        kind, self._message = self._message, ""
+        if kind == "usage":
+            self.show_usage()
+
     def _pasted(self, text):
+        QTimer.singleShot(0, self._check_budget)
         self._ensure_warm()
         if not (text or "").strip():
             self._overlay("error", messages.NO_SPEECH)
@@ -694,6 +736,7 @@ class GeminiSpeech(QObject):
         self.button.set_level(self.silence.level, countdown)
 
     def _transcribe_failed(self, message):
+        QTimer.singleShot(0, self._check_budget)
         self.busy = False
         self._sync_tray()
         self._ensure_warm()
@@ -823,6 +866,10 @@ class GeminiSpeech(QObject):
             self.corrector = groq_engine if data["correct"] else "off"
         if isinstance(data.get("vocabulary"), str):
             self.vocabulary = data["vocabulary"]
+        if isinstance(data.get("budget"), (int, float)):
+            self.budget = max(0.0, float(data["budget"]))
+        if isinstance(data.get("budget_warned"), str):
+            self.budget_warned = data["budget_warned"]
         if data.get("app_language"):
             self.app_language = data["app_language"]
         if "sounds" in data:
@@ -848,6 +895,8 @@ class GeminiSpeech(QObject):
                 "translator": self.translator,
                 "corrector": self.corrector,
                 "vocabulary": self.vocabulary,
+                "budget": self.budget,
+                "budget_warned": self.budget_warned,
                 "app_language": self.app_language,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,

@@ -1,8 +1,10 @@
 import struct
 import threading
+import time
 
 from . import messages
 from . import textproc
+from . import usage
 from . import vad
 
 RATE = 16000
@@ -26,6 +28,9 @@ class BatchSession:
         self._trim = trim
         self._pcm = bytearray()
         self._closing = False
+        self._recorded = 0.0
+        # The dictation this belongs to, for the usage log.
+        self.take = ""
         self.text = ""
         self.error = ""
         self.limit_hit = threading.Event()
@@ -53,6 +58,7 @@ class BatchSession:
         try:
             if vad.voiced_seconds(pcm) < MIN_VOICED:
                 raise RuntimeError(messages.NO_SPEECH)
+            self._recorded = len(pcm) / (RATE * WIDTH)
             if self._trim:
                 pcm = vad.trim(pcm)
             if not pcm:
@@ -75,6 +81,18 @@ class BatchSession:
 
     def transcribe(self, pcm):
         raise NotImplementedError
+
+    def _log(self, model, pcm, started, heard=None, **extra):
+        """Logs one upload. heard is the text that came back, None when it failed."""
+        if heard is None:
+            status = "failed"
+        elif self._closing:
+            status = "cancelled"
+        else:
+            status = "done" if textproc.clean(heard) else "empty"
+        usage.record("speech", model, seconds=len(pcm) / (RATE * WIDTH), recorded=self._recorded,
+                     wait=time.monotonic() - started, status=status, billed=heard is not None,
+                     take=self.take, **extra)
 
 
 def wav(pcm):

@@ -5,6 +5,7 @@ language. Each can be done by any engine below, whatever service listened.
 """
 
 import re
+import time
 
 from . import messages
 from . import net
@@ -136,10 +137,11 @@ def vocabulary_note(vocabulary):
 class Processor:
     """Runs one correction or translation with the chosen engine."""
 
-    def __init__(self, keys, spoken_name="", vocabulary=""):
+    def __init__(self, keys, spoken_name="", vocabulary="", take=""):
         self._keys = keys
         self._spoken = spoken_name
         self._vocabulary = vocabulary
+        self._take = take
 
     def correct(self, engine, text):
         # A correction is a bonus: on any trouble the text is pasted as it was heard.
@@ -170,8 +172,18 @@ class Processor:
             reply = reply[len("<speech>"):-len("</speech>")].strip()
         return " ".join(reply.split())
 
+    def _send(self, kind, model, provider, url, payload, headers):
+        """Posts and logs the request; a refused one costs nothing and is logged as failed."""
+        started = time.monotonic()
+        try:
+            return net.post_json(provider, url, payload, headers), time.monotonic() - started
+        except RuntimeError:
+            usage.record(kind, model, wait=time.monotonic() - started, status="failed",
+                         billed=False, take=self._take)
+            raise
+
     def _groq(self, model, system, text, kind):
-        data = net.post_json("groq", GROQ_CHAT_URL, {
+        data, wait = self._send(kind, model, "groq", GROQ_CHAT_URL, {
             "model": model,
             "messages": [
                 {"role": "system", "content": system},
@@ -184,7 +196,7 @@ class Processor:
         }, {"Authorization": "Bearer " + self._keys.get("groq", "")})
         used = data.get("usage") or {}
         usage.record(kind, model, tokens_in=used.get("prompt_tokens", 0),
-                     tokens_out=used.get("completion_tokens", 0))
+                     tokens_out=used.get("completion_tokens", 0), wait=wait, take=self._take)
         try:
             return data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError):
@@ -202,18 +214,19 @@ class Processor:
         }
         headers = {"x-goog-api-key": self._keys.get("gemini", "")}
         try:
-            data = net.post_json("gemini", GEMINI_URL % model, payload, headers)
+            data, wait = self._send(kind, model, "gemini", GEMINI_URL % model, payload, headers)
         except RuntimeError as exc:
             # The -latest names move to newer models, which can take other
             # thinking settings. Without any, the model picks its own.
             if not str(exc).startswith("Gemini 400"):
                 raise
             del payload["generationConfig"]["thinkingConfig"]
-            data = net.post_json("gemini", GEMINI_URL % model, payload, headers)
+            data, wait = self._send(kind, model, "gemini", GEMINI_URL % model, payload, headers)
         # The -latest names hide which model answered; the reply says.
         used = data.get("usageMetadata") or {}
         usage.record(kind, data.get("modelVersion") or model, tokens_in=used.get("promptTokenCount", 0),
-                     tokens_out=used.get("candidatesTokenCount", 0) + used.get("thoughtsTokenCount", 0))
+                     tokens_out=used.get("candidatesTokenCount", 0) + used.get("thoughtsTokenCount", 0),
+                     wait=wait, take=self._take)
         try:
             parts = data["candidates"][0]["content"]["parts"]
         except (KeyError, IndexError, TypeError):
@@ -221,10 +234,10 @@ class Processor:
         return "".join(part.get("text", "") for part in parts if not part.get("thought"))
 
     def _google(self, text, target_code):
-        data = net.post_json("google", GOOGLE_URL, {
+        data, wait = self._send("translate", "google-translate", "google", GOOGLE_URL, {
             "q": text, "target": target_code, "format": "text",
         }, {"x-goog-api-key": self._keys.get("google", "")})
-        usage.record("translate", "google-translate", chars=len(text))
+        usage.record("translate", "google-translate", chars=len(text), wait=wait, take=self._take)
         try:
             return data["data"]["translations"][0]["translatedText"].strip()
         except (KeyError, IndexError, TypeError):
