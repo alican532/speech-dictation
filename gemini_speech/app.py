@@ -13,6 +13,7 @@ from . import indicator
 from . import messages
 from . import paste
 from . import paths
+from . import sounds
 from . import speech
 from . import startup
 from .audio import Recorder, level
@@ -141,6 +142,7 @@ class GeminiSpeech(QObject):
         self.spoken = ""
         self.auto_stop = 3
         self.trim = True
+        self.sounds = True
         self.widget_pos = None
         self.recorder = Recorder()
         self.silence = Silence()
@@ -213,6 +215,7 @@ class GeminiSpeech(QObject):
             "spoken": self.spoken,
             "auto_stop": self.auto_stop,
             "trim": self.trim,
+            "sounds": self.sounds,
             "startup": startup.enabled(),
             "shortcut": self.shortcut,
             "translate": self.translate,
@@ -327,6 +330,7 @@ class GeminiSpeech(QObject):
         self.spoken = values["spoken"]
         self.auto_stop = values["auto_stop"]
         self.trim = values["trim"]
+        self.sounds = sounds.enabled = values["sounds"]
         record = self.shortcut = values["shortcut"]
         translate = self.translate = values["translate"]
         self.language = values["language"] or "en"
@@ -403,6 +407,7 @@ class GeminiSpeech(QObject):
             self.recorder.on_chunk = self._on_chunk
             note("opening microphone")
             self.recorder.start()
+            sounds.play("start")
             note("microphone open")
             self._overlay("recording")
             note("indicator shown")
@@ -424,6 +429,7 @@ class GeminiSpeech(QObject):
             return
         self._stopping = True
         self.busy = True
+        sounds.play("stop")
         self._sync_tray()
         self._overlay("busy")
         self._finish_token += 1
@@ -470,6 +476,8 @@ class GeminiSpeech(QObject):
         job.start()
 
     def _drop_recording(self):
+        if self.recorder.active:
+            sounds.play("cancel")
         self._finish_token += 1
         self._unlock()
         self._stopping = False
@@ -630,6 +638,8 @@ class GeminiSpeech(QObject):
             self.auto_stop = data["auto_stop"]
         if "trim" in data:
             self.trim = bool(data["trim"])
+        if "sounds" in data:
+            self.sounds = sounds.enabled = bool(data["sounds"])
         pos = data.get("widget_pos")
         if isinstance(pos, list) and len(pos) == 2:
             self.widget_pos = (int(pos[0]), int(pos[1]))
@@ -644,6 +654,7 @@ class GeminiSpeech(QObject):
                 "spoken": self.spoken,
                 "auto_stop": self.auto_stop,
                 "trim": self.trim,
+                "sounds": self.sounds,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,

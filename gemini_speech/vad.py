@@ -91,7 +91,10 @@ class Silence:
     def __init__(self):
         self.reset()
 
-    def reset(self):
+    def reset(self, deaf=0.5):
+        # The start chime plays through the speakers into the microphone.
+        # It is not you speaking, so the first moment is not counted.
+        self._deaf = deaf
         self._rest = b""
         self._noise = []
         self.started = time.monotonic()
@@ -106,8 +109,11 @@ class Silence:
         if not usable:
             return
         now = time.monotonic()
+        deaf = now - self.started < self._deaf
         for value in frame_levels(data[:usable]):
             self.level = value
+            if deaf:
+                continue
             if len(self._noise) < 34:
                 self._noise.append(value)
             limit = max(MIN_VOICE, threshold(self._noise) if len(self._noise) >= 10 else MIN_VOICE)
