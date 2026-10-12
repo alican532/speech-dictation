@@ -542,7 +542,7 @@ class GeminiSpeech(QObject):
                 self.elevenlabs_key, self.spoken, self.trim, words, self.no_verbatim, edit)
             session.open()
         elif service == "elevenlabs-live":
-            session = elevenlabs.ElevenLabsLive(self.elevenlabs_key, self.spoken, words, self.no_verbatim, edit)
+            session = elevenlabs.ElevenLabsLive(self.elevenlabs_key, self.spoken, words, self.no_verbatim)
             session.open()
         else:
             session = groq.GroqSession(self.groq_key, service, self.spoken, self.trim, words)

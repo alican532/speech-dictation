@@ -45,7 +45,7 @@ SERVICE_NOTES = {
     "groq": "Whisper writes down what you say once you stop. Vocabulary words are spelled the way you write them.",
     "groq-turbo": "Whisper writes down what you say once you stop. Vocabulary words are spelled the way you write them.",
     "elevenlabs": "Scribe writes down what you say once you stop. Vocabulary words are listened for and spelled the way you write them.",
-    "elevenlabs-live": "Scribe writes down what you say while you speak, so the text is ready soon after you stop. Vocabulary words are listened for.",
+    "elevenlabs-live": "Scribe writes down what you say while you speak, so the text is ready soon after you stop. Vocabulary words are listened for. ElevenLabs edit needs Scribe v2.",
     "gemini": "Gemini Live writes down what you say as you speak, and translates it live.",
 }
 

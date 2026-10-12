@@ -24,9 +24,10 @@ WIDTH = 2
 CHUNK = RATE * WIDTH // 4  # 250 ms
 MAX_PCM = 10 * 60 * RATE * WIDTH
 # The server commits by itself after about 36 s of audio. Committing a
-# little earlier, in a pause, keeps a word from being cut in two.
+# little earlier, in a pause between sentences, keeps them whole.
 COMMIT_AFTER = 20 * RATE * WIDTH
 QUIET = 400
+PAUSE = RATE * WIDTH // 2
 # More than 100 terms makes every request bill at least 20 s.
 BATCH_TERMS = (100, 49)
 LIVE_TERMS = (50, 20)
@@ -87,23 +88,21 @@ class ElevenLabsSession(BatchSession):
 class ElevenLabsLive:
     """Streams the microphone to Scribe v2 Realtime while you speak."""
 
-    def __init__(self, api_key, language="", vocabulary="", no_verbatim=True, edit=None):
+    def __init__(self, api_key, language="", vocabulary="", no_verbatim=True):
         self._key = (api_key or "").strip()
         self._language = (language or "").strip()
         self._terms = keyterms(vocabulary, LIVE_TERMS)
         self._no_verbatim = no_verbatim
-        self._edit = edit
         self._queue = queue.Queue()
         self._thread = None
         self._sock = None
         self._buf = bytearray()
         self._sent = 0
         self._since_commit = 0
+        self._quiet = 0
         self._closing = False
         self._committed = []
-        self._edited = []
         self._partial = ""
-        self._last_commit = 0
         self.text = ""
         self.error = ""
         self.limit_hit = threading.Event()
@@ -151,8 +150,6 @@ class ElevenLabsLive:
             query["language_code"] = self._language
         if self._terms:
             query["keyterms"] = self._terms
-        if self._edit:
-            query["transcript_edit"] = self._edit[1]
         return query
 
     def _run(self):
@@ -184,7 +181,8 @@ class ElevenLabsLive:
                         pending.clear()
                         break
                     # A long take is committed in a pause, before the server cuts it.
-                    commit = self._since_commit >= COMMIT_AFTER and level(piece) < QUIET
+                    self._quiet = self._quiet + len(piece) if level(piece) < QUIET else 0
+                    commit = self._since_commit >= COMMIT_AFTER and self._quiet >= PAUSE
                     self._send_audio(piece, commit)
                 if ending:
                     self._end()
@@ -197,11 +195,7 @@ class ElevenLabsLive:
                 else:
                     self.error = detail[:80] or messages.REQUEST_FAILED
         finally:
-            try:
-                self.text = self._text()
-            except RuntimeError as exc:
-                self.text = ""
-                self.error = self.error or str(exc)
+            self.text = self._text()
             if not self.text and not self.error and not self._closing:
                 self.error = messages.RECORDING_TOO_LONG if self.limit_hit.is_set() else messages.NO_SPEECH
             self._close()
@@ -213,12 +207,12 @@ class ElevenLabsLive:
         self._send({"message_type": "input_audio_chunk", "audio_base_64": "",
                     "commit": True, "sample_rate": RATE})
         mark = len(self._committed)
-        # The last commit answers with its transcript, and with its edit
-        # when one was asked for. A take with nothing new in it may not.
+        # The last commit answers with its transcript, an empty one when
+        # nothing was said since the one before.
         deadline = speech._now() + (8 if self._partial or self._since_commit_audio() else 2)
         while speech._now() < deadline and not self._closing and not self.error:
             self._drain(0.05)
-            if len(self._committed) > mark and (not self._edit or len(self._edited) >= len(self._committed)):
+            if len(self._committed) > mark:
                 return
 
     def _since_commit_audio(self):
@@ -280,8 +274,6 @@ class ElevenLabsLive:
         elif kind == "committed_transcript":
             self._committed.append((message.get("text") or "").strip())
             self._partial = ""
-        elif kind == "edited_transcript":
-            self._edited.append(_edit_text(message.get("edited_text")) or "")
         elif kind in LIVE_ERRORS:
             self.error = LIVE_ERRORS[kind]
         elif kind.endswith("error") or kind in ("invalid_request", "resource_exhausted", "queue_overflow",
@@ -293,10 +285,7 @@ class ElevenLabsLive:
         heard = " ".join(piece for piece in self._committed if piece)
         if self._partial.strip():
             heard = (heard + " " + self._partial.strip()).strip()
-        if not self._edit:
-            return heard
-        edited = " ".join(piece for piece in self._edited if piece)
-        return _edited(self._edit, heard, edited if len(self._edited) >= len(self._committed) else "")
+        return heard
 
     def _send(self, payload):
         speech._send_frame(self._sock, 1, json.dumps(payload).encode("utf-8"))

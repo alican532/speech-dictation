@@ -95,8 +95,10 @@ def service_provider(service):
 
 def available(engine, service):
     # ElevenLabs edits and Gemini Live translates only their own transcripts.
+    # Scribe Realtime edits each committed piece on its own, which leaves
+    # pieces untranslated and sentences cut, so only Scribe v2 offers it.
     if engine == "elevenlabs":
-        return service_provider(service) == "elevenlabs"
+        return service == "elevenlabs"
     if engine == "gemini-live":
         return service == "gemini"
     return engine in ENGINES or engine == "off"

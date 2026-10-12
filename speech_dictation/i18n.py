@@ -63,9 +63,9 @@ TR = {
     "Scribe writes down what you say once you stop. Vocabulary words are listened for and spelled the way you write them.":
         "Scribe siz durunca söylediklerinizi yazıya döker. Sözlükteki kelimelere özellikle kulak verir "
         "ve onları sizin yazdığınız gibi yazar.",
-    "Scribe writes down what you say while you speak, so the text is ready soon after you stop. Vocabulary words are listened for.":
+    "Scribe writes down what you say while you speak, so the text is ready soon after you stop. Vocabulary words are listened for. ElevenLabs edit needs Scribe v2.":
         "Scribe siz konuşurken yazıya döker, bu yüzden metin siz durur durmaz hazır olur. "
-        "Sözlükteki kelimelere özellikle kulak verir.",
+        "Sözlükteki kelimelere özellikle kulak verir. ElevenLabs düzenleme için Scribe v2 gerekir.",
     "Correction fixes words the speech service misheard. Translation runs when "
     "you use the Translate shortcut or the badge on the button. ElevenLabs edit "
     "adds 30% to the ElevenLabs price; Google Translate only translates.":
