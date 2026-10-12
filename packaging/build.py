@@ -17,7 +17,7 @@ def png_to_ico(png_path, ico_path):
 
 
 def version():
-    text = open(os.path.join(ROOT, "gemini_speech", "__init__.py"), encoding="utf-8").read()
+    text = open(os.path.join(ROOT, "speech_dictation", "__init__.py"), encoding="utf-8").read()
     return text.split('"')[1]
 
 

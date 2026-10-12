@@ -101,4 +101,4 @@ An installed build checks this repo's latest release a few seconds after it star
 
 ## Origin
 
-This project began as a copy of [ruwiss/gemini_speech](https://github.com/ruwiss/gemini_speech) and went its own way from version 2.0.0. That repository has no license, so this one stays private. The `cookie-fallback` folder is the original project's older, cookie-based app and is not used here.
+This project began as a copy of [ruwiss/gemini_speech](https://github.com/ruwiss/gemini_speech) and went its own way from version 2.0.0. That repository has no license, so this one stays private.

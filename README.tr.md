@@ -101,4 +101,4 @@ Kurulu bir sürüm, açıldıktan birkaç saniye sonra ve altı saatte bir bu re
 
 ## Kaynak
 
-Bu proje [ruwiss/gemini_speech](https://github.com/ruwiss/gemini_speech) reposunun bir kopyası olarak başladı ve 2.0.0 sürümünden itibaren kendi yolunda ilerliyor. O reponun lisansı olmadığı için bu repo gizli tutuluyor. `cookie-fallback` klasörü orijinal projenin eski, çerez tabanlı uygulamasıdır ve burada kullanılmaz.
+Bu proje [ruwiss/gemini_speech](https://github.com/ruwiss/gemini_speech) reposunun bir kopyası olarak başladı ve 2.0.0 sürümünden itibaren kendi yolunda ilerliyor. O reponun lisansı olmadığı için bu repo gizli tutuluyor.
