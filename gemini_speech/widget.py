@@ -7,9 +7,10 @@ from PyQt6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
 
 MARGIN = 6
 HEIGHT = 52
-WIDTH = 176
+WIDTH = 224
 MIC = 40
 SIDE = 32
+CLOSE = 26
 
 BG = QColor(28, 31, 37, 242)
 EDGE = QColor(255, 255, 255, 28)
@@ -23,7 +24,7 @@ GLYPH = QColor(236, 238, 242)
 DIM = QColor(150, 156, 168)
 
 # Segoe Fluent Icons ships with Windows 11, Segoe MDL2 Assets with Windows 10.
-_GLYPHS = {"mic": "", "lock": "", "unlock": "", "gear": ""}
+_GLYPHS = {"mic": "\uE720", "lock": "\uE72E", "unlock": "\uE785", "gear": "\uE713", "close": "\uE8BB"}
 
 
 def _icon_font():
@@ -38,7 +39,8 @@ class FloatingButton(QWidget):
     """A small always-on-top bar, like Windows voice typing.
 
     It never takes focus, so the text still lands in the window you were
-    typing in. Drag it anywhere; it remembers where it was left.
+    typing in. Drag it anywhere; it remembers where it was left. The cross
+    hides it until the next dictation starts.
     """
 
     toggled = pyqtSignal()
@@ -94,6 +96,10 @@ class FloatingButton(QWidget):
         mic = self._mic_rect()
         return QRectF(mic.right() + 12, mic.center().y() - SIDE / 2, SIDE, SIDE)
 
+    def _close_rect(self):
+        body = self._body()
+        return QRectF(body.right() - 12 - CLOSE, body.center().y() - CLOSE / 2, CLOSE, CLOSE)
+
     def _part_at(self, pos):
         point = QPointF(pos)
         if self._mic_rect().adjusted(-4, -4, 4, 4).contains(point):
@@ -102,6 +108,8 @@ class FloatingButton(QWidget):
             return "lock"
         if self._gear_rect().contains(point):
             return "gear"
+        if self._close_rect().contains(point):
+            return "close"
         if self._body().contains(point):
             return "grip"
         return ""
@@ -210,6 +218,10 @@ class FloatingButton(QWidget):
             self.lock_changed.emit(self.locked)
         elif part == "gear":
             self.settings_requested.emit()
+        elif part == "close":
+            self._hover = ""
+            QToolTip.hideText()
+            self.hide_requested.emit()
 
     def leaveEvent(self, event):
         self._hover = ""
@@ -224,12 +236,13 @@ class FloatingButton(QWidget):
             return "Keep listening until I stop" if not self.locked else "Locked: auto-stop is off"
         if part == "gear":
             return "Settings"
+        if part == "close":
+            return "Hide until the next dictation"
         return ""
 
     def _menu(self, pos):
         menu = QMenu(self)
         menu.addAction("Settings", self.settings_requested.emit)
-        menu.addAction("Hide button", self.hide_requested.emit)
         menu.addSeparator()
         menu.addAction("Quit", self.quit_requested.emit)
         menu.exec(pos)
@@ -252,6 +265,7 @@ class FloatingButton(QWidget):
         self._draw_grip(painter, body)
         self._draw_lock(painter)
         self._draw_gear(painter)
+        self._draw_close(painter)
         self._draw_mic(painter)
 
     def _draw_grip(self, painter, body):
@@ -310,6 +324,18 @@ class FloatingButton(QWidget):
                 QPointF(c.x() + 5 * math.cos(angle), c.y() + 5 * math.sin(angle)),
                 QPointF(c.x() + 7.5 * math.cos(angle), c.y() + 7.5 * math.sin(angle)),
             )
+
+    def _draw_close(self, painter):
+        rect = self._close_rect()
+        self._round_button(painter, rect, self._hover == "close")
+        if self._glyph(painter, rect, "close", DIM, 10):
+            return
+        c = rect.center()
+        pen = QPen(DIM, 1.5)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.drawLine(QPointF(c.x() - 4, c.y() - 4), QPointF(c.x() + 4, c.y() + 4))
+        painter.drawLine(QPointF(c.x() + 4, c.y() - 4), QPointF(c.x() - 4, c.y() + 4))
 
     def _draw_mic(self, painter):
         rect = self._mic_rect()

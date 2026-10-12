@@ -183,7 +183,6 @@ class Settings(QDialog):
         for label, seconds in AUTO_STOP:
             self.auto_stop.addItem(label, seconds)
         self.trim = QCheckBox("Cut pauses before sending (Groq)")
-        self.floating = QCheckBox("Show the floating button")
         self.startup = QCheckBox("Start with Windows")
         self.shortcut = ShortcutField()
         self.translate = ShortcutField()
@@ -201,7 +200,6 @@ class Settings(QDialog):
         form.addRow("Translate to", self.language)
         form.addRow("Cancel", self.cancel)
         form.addRow("", self.trim)
-        form.addRow("", self.floating)
         if sys.platform == "win32":
             form.addRow("", self.startup)
         self._save_button = QPushButton("Save")
@@ -238,7 +236,6 @@ class Settings(QDialog):
             index = combo.findData(value)
             combo.setCurrentIndex(index if index >= 0 else 0)
         self.trim.setChecked(values["trim"])
-        self.floating.setChecked(values["floating"])
         self.startup.setChecked(values["startup"])
 
     def closeEvent(self, event):
@@ -290,7 +287,6 @@ class Settings(QDialog):
             "spoken": self.spoken.currentData() or "",
             "auto_stop": int(self.auto_stop.currentData() or 0),
             "trim": self.trim.isChecked(),
-            "floating": self.floating.isChecked(),
             "startup": self.startup.isChecked(),
             "shortcut": record,
             "translate": translate,

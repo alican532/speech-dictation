@@ -141,7 +141,6 @@ class GeminiSpeech(QObject):
         self.spoken = ""
         self.auto_stop = 3
         self.trim = True
-        self.floating = True
         self.widget_pos = None
         self.recorder = Recorder()
         self.silence = Silence()
@@ -168,20 +167,15 @@ class GeminiSpeech(QObject):
         self.menu = QMenu()
         settings = QAction("Settings", self.menu)
         settings.triggered.connect(self.show_settings)
-        self.float_action = QAction("Floating button", self.menu)
-        self.float_action.setCheckable(True)
-        self.float_action.setChecked(self.floating)
-        self.float_action.triggered.connect(self._set_floating)
         quit_ = QAction("Quit", self.menu)
         quit_.triggered.connect(self.quit)
         self.menu.addAction(settings)
-        self.menu.addAction(self.float_action)
         self.menu.addAction(quit_)
         self.button = FloatingButton()
         self.button.toggled.connect(lambda: self.toggle())
         self.button.lock_changed.connect(self._lock_changed)
         self.button.settings_requested.connect(self.show_settings)
-        self.button.hide_requested.connect(lambda: self._set_floating(False))
+        self.button.hide_requested.connect(self._hide_button)
         self.button.quit_requested.connect(self.quit)
         self.button.moved.connect(self._button_moved)
         self.tray.setContextMenu(self.menu)
@@ -219,7 +213,6 @@ class GeminiSpeech(QObject):
             "spoken": self.spoken,
             "auto_stop": self.auto_stop,
             "trim": self.trim,
-            "floating": self.floating,
             "startup": startup.enabled(),
             "shortcut": self.shortcut,
             "translate": self.translate,
@@ -228,19 +221,22 @@ class GeminiSpeech(QObject):
         }
 
     def _show_button(self):
-        if not self.floating or self._quitting:
-            self.button.hide()
+        if self._quitting:
             return
-        pos = self.widget_pos or (None, None)
-        self.button.place(*pos)
-        self.button.show()
+        if not self.button.isVisible():
+            pos = self.widget_pos or (None, None)
+            self.button.place(*pos)
+            self.button.show()
         self.button.raise_()
 
-    def _set_floating(self, on):
-        self.floating = bool(on)
-        self.float_action.setChecked(self.floating)
-        self._store()
-        self._show_button()
+    def _hide_button(self):
+        # Like Windows voice typing: closing the bar also ends what it was hearing.
+        if self.recorder.active and not self._stopping:
+            self._drop_recording()
+            self.busy = False
+            self._sync_tray()
+            self._ensure_warm()
+        self.button.hide()
 
     def _button_moved(self, x, y):
         self.widget_pos = (x, y)
@@ -340,7 +336,6 @@ class GeminiSpeech(QObject):
         except OSError as exc:
             self._overlay("error", "Start with Windows: %s" % exc)
         self._store()
-        self._set_floating(values["floating"])
         self.settings.shortcut.owned = record
         self.settings.translate.owned = translate
         self.settings.cancel.owned = cancel
@@ -404,6 +399,7 @@ class GeminiSpeech(QObject):
                 self._live = groq.GroqSession(self.groq_key, service, self.spoken, self.trim)
                 self._live.open()
             self.silence.reset()
+            self._show_button()
             self.recorder.on_chunk = self._on_chunk
             note("opening microphone")
             self.recorder.start()
@@ -634,8 +630,6 @@ class GeminiSpeech(QObject):
             self.auto_stop = data["auto_stop"]
         if "trim" in data:
             self.trim = bool(data["trim"])
-        if "floating" in data:
-            self.floating = bool(data["floating"])
         pos = data.get("widget_pos")
         if isinstance(pos, list) and len(pos) == 2:
             self.widget_pos = (int(pos[0]), int(pos[1]))
@@ -650,7 +644,6 @@ class GeminiSpeech(QObject):
                 "spoken": self.spoken,
                 "auto_stop": self.auto_stop,
                 "trim": self.trim,
-                "floating": self.floating,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,
