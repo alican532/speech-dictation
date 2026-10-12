@@ -3,8 +3,8 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 import sys
 
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QPushButton, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+    QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from . import __version__
@@ -236,9 +236,26 @@ class Settings(QDialog):
             " border-radius: 8px; padding: 8px 14px; }"
             "QPushButton:hover { background: #5b97f7; }"
             "QCheckBox { color: #e7e9ee; font-size: 13px; }"
+            "QScrollArea, #settingsBody { background: #17191e; border: none; }"
+            "QScrollBar:vertical { background: #17191e; width: 10px; margin: 4px 2px; }"
+            "QScrollBar::handle:vertical { background: #3c4250; border-radius: 3px; min-height: 40px; }"
+            "QScrollBar::handle:vertical:hover { background: #4d5566; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
         )
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 20)
+        # The sections scroll when the screen is too short for them; Save stays in view below.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        body = QWidget()
+        body.setObjectName("settingsBody")
+        self._scroll.setWidget(body)
+        outer.addWidget(self._scroll, 1)
+        layout = QVBoxLayout(body)
+        layout.setContentsMargins(22, 20, 22, 12)
         layout.setSpacing(12)
         self.service = QComboBox()
         for label, code in SERVICES:
@@ -342,8 +359,12 @@ class Settings(QDialog):
             usage.clicked.connect(on_usage)
             buttons.addWidget(usage)
         buttons.addWidget(self._save_button, 1)
-        layout.addLayout(buttons)
-        layout.addWidget(VersionLink())
+        footer = self._footer = QVBoxLayout()
+        footer.setContentsMargins(22, 10, 22, 16)
+        footer.setSpacing(8)
+        footer.addLayout(buttons)
+        footer.addWidget(VersionLink())
+        outer.addLayout(footer)
         self.service.currentIndexChanged.connect(self._refresh)
         self.corrector.activated.connect(lambda: self._pick("corrector"))
         self.translator.activated.connect(lambda: self._pick("translator"))
@@ -430,15 +451,27 @@ class Settings(QDialog):
         QTimer.singleShot(0, self._fit)
 
     def _fit(self):
-        layout = self.layout()
-        layout.invalidate()
-        layout.activate()
-        hint = layout.sizeHint()
+        body = self._scroll.widget()
+        body.layout().invalidate()
+        body.layout().activate()
+        content = body.layout().sizeHint()
+        height = content.height() + self._footer.sizeHint().height()
+        # Keep the whole window, title bar included, on the screen.
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            room = screen.availableGeometry().height() - (self.frameGeometry().height() - self.height()) - 8
+            height = min(height, room)
+        width = max(self.minimumWidth(), content.width() + self._scroll.verticalScrollBar().sizeHint().width())
         self.setMinimumHeight(0)
         self.setMaximumHeight(16777215)
-        height = hint.height()
-        self.resize(max(self.minimumWidth(), hint.width()), height)
+        self.resize(width, height)
         self.setFixedHeight(height)
+        # A window taller than the room left above it moves up.
+        if screen is not None:
+            area = screen.availableGeometry()
+            frame = self.frameGeometry()
+            if frame.bottom() > area.bottom():
+                self.move(self.x(), max(area.top(), self.y() - (frame.bottom() - area.bottom())))
 
     def _save(self):
         record = self.shortcut.text().strip()
