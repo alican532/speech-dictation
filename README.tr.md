@@ -21,16 +21,16 @@ Masaüstü için dikte ve çeviri. Bir kısayola ya da yüzen butona basın, kon
   - **Kilit:** siz durdurana kadar duraklamalarda da dinlemeye devam eder.
   - **✕:** çubuğu gizler (süren bir kayıt varsa iptal eder). Bir sonraki dikte onu geri getirir.
 - **Otomatik durdurma.** Birkaç saniye sessiz kalınca kayıt biter ve metin yapıştırılır; son saniyeleri bir halka geri sayar. Hiç konuşulmazsa kayıt atılır ve hiçbir şey gönderilmez.
-- **Sesler.** Windows sesle yazmanın başlama, bitiş ve iptal sesleri.
+- **Sesler.** Windows'ta, Windows sesle yazmanın başlama, bitiş ve iptal sesleri; macOS ve Linux'ta uygulamanın `assets/sounds` içindeki kendi sesleri.
 - **Duraklama kesme (Groq).** Cümlelerin önündeki, arkasındaki ve aralarındaki sessizlik gönderilmeden kesilir. Bu hem hızlandırır hem de Whisper'ın sessizlikte metin uydurmasını önler; "Altyazı M.K." gibi bilinen hayalet cümleler de atılır.
 - **Akıllı düzeltme (Groq).** Metin modeli, Whisper'ın yanlış duyduğu kelimeleri cümlenin bütününe bakarak düzeltir ve gerisine dokunmaz. Cevabı yeniden yazılmış gibi görünürse ya da istek başarısız olursa Whisper'ın metni olduğu gibi yapıştırılır.
 - **Sözlük (Groq).** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak ve metin modeline gider.
 - **İki arayüz dili:** İngilizce ve Türkçe. Siz seçene kadar sistem dilini kullanır.
-- **Windows ile başlat**, Ayarlar'da bir seçenek.
+- **Oturum açılınca başlat**, Ayarlar'da bir seçenek (Windows'ta Run kaydı, macOS'ta LaunchAgent, Linux'ta autostart dosyası).
 
 ## Gereksinimler
 
-- Windows 10 ya da 11 (kod, orijinal projeden gelen macOS ve Linux desteğini de taşır; bu fork'ta test edilmedi)
+- Windows 10 ya da 11, macOS ya da Linux (bkz. [macOS ve Linux](#macos-ve-linux); şimdiye kadar yalnızca Windows'ta test edildi)
 - Kaynaktan çalıştırmak için Python 3.11 ya da üstü
 - Kullandığınız servisin API anahtarı:
   - Groq: [console.groq.com/keys](https://console.groq.com/keys)
@@ -60,6 +60,21 @@ Masaüstü kısayolu, hedefi `.venv\Scripts\pythonw.exe`, argümanı `launch.py`
 
 Başlatmak için kısayola bir kez, durdurmak için bir kez daha basın. Tepsi simgesine tıklamak dikte kısayoluyla aynı işi yapar. Ayarlar penceresi öndeyken dikte başlamaz, böylece metin onun alanlarından birine yapıştırılmaz; önce yazacağınız pencereye tıklayın.
 
+## macOS ve Linux
+
+Her özellik üç sistemde de çalışacak şekilde yazıldı. Farklı olanlar:
+
+**macOS**
+- Sorulduğunda Sistem Ayarları › Gizlilik ve Güvenlik'te üç izni verin: *Mikrofon* (dinlemek için), *Erişilebilirlik* (Cmd+V ile yapıştırmak için) ve *Girdi İzleme* (genel kısayollar için).
+- Derlenmiş uygulama bir menü çubuğu uygulamasıdır, Dock'ta simgesi olmaz.
+- Yüzen buton etkinleştirmeyen bir paneldir; ona tıklamak yazdığınız uygulamayı önde bırakır. Her masaüstünde ve tam ekran uygulamaların üstünde görünür.
+
+**Linux**
+- X11: her şey Windows'taki gibi çalışır.
+- KDE Plasma ya da Hyprland üzerinde Wayland: uygulama, pencere yöneticisinden butonu üstte, görev çubuğunun dışında ve odaksız tutmasını ister. Sürükleme pencere yöneticisine devredildiği için butonun yeri açılışlar arasında hatırlanmaz; ekranın alt ortasına yakın başlar.
+- GNOME ve diğer masaüstlerinde Wayland: bunlar bir pencereyi odaksız ya da üstte tutmanın bir yolunu sunmaz. Kısayollar her zamanki gibi çalışır. Butona tıklayarak başlatılan bir dikte metni kopyalar ve Ctrl+V'ye basmanızı ister, çünkü tıklama odağı butona taşımıştır.
+- Wayland'da yapıştırma sırasıyla `/dev/uinput`, `ydotool` / `wtype` ya da masaüstünün uzaktan giriş izni üzerinden yapılır.
+
 ## Ayarlar
 
 Sadece seçili servisin bölümü görünür.
@@ -69,7 +84,7 @@ Sadece seçili servisin bölümü görünür.
 | Servis | Groq Whisper Large v3, Groq Whisper Large v3 Turbo, Gemini Live |
 | Groq | Anahtar, konuştuğunuz dil, metin modeli, sözlük, akıllı düzeltme, duraklama kesme |
 | Gemini | Anahtar |
-| Genel | Uygulama dili, dikte / çeviri / iptal kısayolları, çeviri dili, otomatik durdurma, sesler, Windows ile başlat |
+| Genel | Uygulama dili, dikte / çeviri / iptal kısayolları, çeviri dili, otomatik durdurma, sesler, oturum açılınca başlat |
 
 Ayarların saklandığı yer:
 
@@ -95,7 +110,7 @@ Güncel rakamlar için sağlayıcıların fiyat sayfalarına bakın. Ses yalnız
 .venv\Scripts\python packaging\build.py
 ```
 
-Windows'ta ayrıca [Inno Setup 6](https://jrsoftware.org/isinfo.php) gerekir. Sonuç, kullanıcı başına kurulan `dist\SpeechDictation-Setup.exe` dosyasıdır. GitHub'da bir sürüm (release) yayınlamak, aynı derlemeyi `.github/workflows/release.yml` ile Windows, macOS ve Linux için çalıştırır.
+Windows'ta ayrıca [Inno Setup 6](https://jrsoftware.org/isinfo.php) gerekir. Sonuç, kullanıcı başına kurulan `dist\SpeechDictation-Setup.exe` dosyasıdır. macOS'ta `dist/SpeechDictation-macos.dmg`, Linux'ta `./SpeechDictation/install.sh` ile kurulan `dist/SpeechDictation-linux.tar.gz` oluşur. GitHub'da bir sürüm (release) yayınlamak, aynı derlemeyi `.github/workflows/release.yml` ile Windows, macOS ve Linux için çalıştırır.
 
 Kurulu bir sürüm, açıldıktan birkaç saniye sonra ve altı saatte bir bu reponun son sürümüne bakar ve kendini günceller. Kaynaktan çalışan kopya kendini hiç güncellemez. Repo gizli olduğu sürece GitHub bu kontrole anahtarsız cevap vermez, bu yüzden kurulu sürümler kendi sürümlerinde kalır.
 

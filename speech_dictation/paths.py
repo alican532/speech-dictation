@@ -14,6 +14,9 @@ if not os.path.isfile(ICON):
     bundled = getattr(sys, "_MEIPASS", "")
     if bundled and os.path.isfile(os.path.join(bundled, "assets", "icon.png")):
         ICON = os.path.join(bundled, "assets", "icon.png")
+# A frozen macOS app keeps its data apart from the executable, so assets are
+# found wherever the icon was.
+ASSETS = os.path.dirname(ICON)
 
 
 def config_dir():

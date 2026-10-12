@@ -238,7 +238,7 @@ class Settings(QDialog):
             self.auto_stop.addItem(label, seconds)
         self.trim = QCheckBox(tr("Cut pauses before sending"))
         self.sounds = QCheckBox(tr("Play a sound when listening starts and stops"))
-        self.startup = QCheckBox(tr("Start with Windows"))
+        self.startup = QCheckBox(tr("Start with Windows") if sys.platform == "win32" else tr("Start at login"))
         self.shortcut = ShortcutField()
         self.translate = ShortcutField()
         self.language = QComboBox()
@@ -278,8 +278,7 @@ class Settings(QDialog):
             (tr("Auto-stop"), self.auto_stop),
             ("", self.sounds),
         ]
-        if sys.platform == "win32":
-            general.append(("", self.startup))
+        general.append(("", self.startup))
         self._general = _section(tr("General"), general,
             tr("The lock on the floating button keeps it listening through pauses until you stop it."))
         layout.addWidget(self._groq)

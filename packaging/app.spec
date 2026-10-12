@@ -9,7 +9,7 @@ ICON = os.path.join(ROOT, "assets", "icon.ico")
 
 # pynput imports an X display at import time. Headless CI needs xvfb-run, and
 # Linux backends are listed explicitly so the freeze still picks them up.
-hiddenimports = ["PyQt6.QtMultimedia", "certifi"]
+hiddenimports = ["PyQt6.QtMultimedia", "PyQt6.QtNetwork", "certifi"]
 if sys.platform.startswith("linux"):
     hiddenimports += [
         "pynput",
@@ -106,4 +106,12 @@ if sys.platform == "darwin":
         coll,
         name="SpeechDictation.app",
         bundle_identifier="com.speechdictation.app",
+        info_plist={
+            # Without this macOS ends the app the moment it opens the microphone.
+            "NSMicrophoneUsageDescription": "Speech Dictation listens while you dictate.",
+            # A menu bar app: no Dock icon, and clicks on the floating
+            # button do not bring it to the front.
+            "LSUIElement": True,
+            "CFBundleShortVersionString": open(os.path.join(ROOT, "speech_dictation", "__init__.py")).read().split('"')[1],
+        },
     )

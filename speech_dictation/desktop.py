@@ -9,6 +9,7 @@ import time
 from .crashlog import note
 
 OVERLAY_TITLE = "GeminiSpeechAPI-indicator"
+BUTTON_TITLE = "SpeechDictation-button"
 _SCRIPT = "gemini_speech_follow"
 _KWIN = False
 _HYPR = ""
@@ -70,6 +71,13 @@ def follows():
     return _KWIN or bool(_HYPR)
 
 
+def button_keeps_focus():
+    # Windows, macOS and X11 let the floating button refuse focus, and KWin
+    # and Hyprland are told to. Other Wayland desktops, such as GNOME, focus
+    # it on a click, so a paste would land in the button.
+    return not wayland() or follows()
+
+
 def place(widget):
     if _KWIN:
         return True
@@ -98,7 +106,7 @@ def remember_focus():
         return
     data = _hypr_json("activewindow")
     title = (data or {}).get("title") or ""
-    if OVERLAY_TITLE in title:
+    if OVERLAY_TITLE in title or BUTTON_TITLE in title:
         return
     _FOCUS = (data or {}).get("address") or ""
 
@@ -256,6 +264,7 @@ def _kwin_unload():
 def _kwin_script():
     return """
 var TITLE = %s;
+var BUTTON = %s;
 var PID = %d;
 var previous = null;
 var placed = false;
@@ -271,8 +280,32 @@ function ours(w) {
     return w && w.pid === PID && w.caption && w.caption.indexOf(TITLE) >= 0;
 }
 
+// The floating button stays where the user drags it; it only keeps above
+// and hands focus back, like the indicator.
+function button(w) {
+    return w && w.pid === PID && w.caption && w.caption.indexOf(BUTTON) >= 0;
+}
+
+function setUpButton(w) {
+    try {
+        w.keepAbove = true;
+        w.skipTaskbar = true;
+        w.skipPager = true;
+        w.skipSwitcher = true;
+        w.onAllDesktops = true;
+        var screen = workspace.screenAt(workspace.cursorPos);
+        if (screen) {
+            var g = screen.geometry;
+            var q = Object.assign({}, w.frameGeometry);
+            q.x = Math.round(g.x + (g.width - w.width) / 2);
+            q.y = Math.round(g.y + g.height - w.height - 72);
+            w.frameGeometry = q;
+        }
+    } catch (e) {}
+}
+
 function ignored(w) {
-    if (!w || ours(w)) return true;
+    if (!w || ours(w) || button(w)) return true;
     var cls = (w.resourceClass || "") + " " + (w.resourceName || "");
     var cap = w.caption || "";
     if (cls.indexOf("portal") >= 0 || cls.indexOf("polkit") >= 0) return true;
@@ -321,7 +354,7 @@ function place() {
 var restoring = false;
 function onActivated(w) {
     if (restoring) return;
-    if (!ours(w)) {
+    if (!ours(w) && !button(w)) {
         if (!ignored(w)) previous = w;
         return;
     }
@@ -336,9 +369,14 @@ workspace.cursorPosChanged.connect(place);
 workspace.windowActivated.connect(onActivated);
 workspace.windowAdded.connect(function(w) {
     if (ours(w)) place();
+    if (button(w)) setUpButton(w);
 });
+var existing = windows();
+for (var i = 0; i < existing.length; i++) {
+    if (button(existing[i])) setUpButton(existing[i]);
+}
 place();
-""" % (json.dumps(OVERLAY_TITLE), os.getpid())
+""" % (json.dumps(OVERLAY_TITLE), json.dumps(BUTTON_TITLE), os.getpid())
 
 
 def _hypr_socket():
@@ -392,6 +430,12 @@ def _hypr_rules():
     title = "title:^(GeminiSpeechAPI-indicator)$"
     for rule in ("float", "nofocus", "noinitialfocus", "noborder", "pin"):
         _hypr("keyword windowrulev2 %s,%s" % (rule, title))
+    # The floating button: on top of everything, never focused, and placed
+    # near the bottom middle the first time, since Wayland apps cannot place
+    # their own windows.
+    button = "title:^(%s)$" % BUTTON_TITLE
+    for rule in ("float", "nofocus", "noinitialfocus", "noborder", "noshadow", "pin", "move 45% 88%"):
+        _hypr("keyword windowrulev2 %s,%s" % (rule, button))
 
 
 def _hypr_cursor():

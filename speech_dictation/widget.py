@@ -5,6 +5,7 @@ from PyQt6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 
+from . import desktop
 from .i18n import tr
 
 MARGIN = 6
@@ -56,17 +57,24 @@ class FloatingButton(QWidget):
 
     def __init__(self):
         super().__init__(None)
-        self.setWindowFlags(
+        flags = (
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.WindowDoesNotAcceptFocus
-            | Qt.WindowType.Tool
         )
+        # On Wayland a Tool window wants a parent; a plain window shows the same.
+        if not desktop.wayland():
+            flags |= Qt.WindowType.Tool
+        self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        # macOS hides tool windows whenever another app is in front, which is
+        # exactly when the button is needed.
+        self.setAttribute(Qt.WidgetAttribute.WA_MacAlwaysShowToolWindow)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setMouseTracking(True)
-        self.setWindowTitle("Speech Dictation")
+        # KWin and Hyprland find the bar by this title to keep it on top and unfocused.
+        self.setWindowTitle(desktop.BUTTON_TITLE)
         self.setFixedSize(WIDTH + MARGIN * 2, HEIGHT + MARGIN * 2)
         self._font = _icon_font()
         self.state = "idle"
@@ -171,6 +179,7 @@ class FloatingButton(QWidget):
         if not self._native_done:
             self._native_done = True
             _no_activate(int(self.winId()))
+            _mac_panel(int(self.winId()))
 
     def _sync_timer(self):
         if self.state in ("recording", "busy"):
@@ -197,6 +206,12 @@ class FloatingButton(QWidget):
         if self._press is not None and event.buttons() & Qt.MouseButton.LeftButton:
             delta = event.globalPosition().toPoint() - self._press_at
             if self._dragging or delta.manhattanLength() > 5:
+                if not self._dragging and desktop.wayland():
+                    # Wayland ignores move(); the compositor moves the window instead.
+                    handle = self.windowHandle()
+                    if handle is not None and handle.startSystemMove():
+                        self._press = None
+                        return
                 self._dragging = True
                 self.move(self._origin + delta)
             return
@@ -389,6 +404,55 @@ def _draw_badge_ring(painter, rect):
     painter.setPen(QPen(QColor(24, 26, 31, 235), 2.2))
     painter.setBrush(Qt.BrushStyle.NoBrush)
     painter.drawEllipse(rect.adjusted(-1.1, -1.1, 1.1, 1.1))
+
+
+def _mac_panel(view):
+    # Qt makes a Tool window an NSPanel. Clicking a panel still brings the
+    # app to the front unless it is non-activating, and then the paste would
+    # land in this app instead of the one you were typing in.
+    if sys.platform != "darwin" or not view:
+        return
+    try:
+        import ctypes
+        import ctypes.util
+        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc") or "/usr/lib/libobjc.A.dylib")
+        objc.sel_registerName.restype = ctypes.c_void_p
+        objc.sel_registerName.argtypes = [ctypes.c_char_p]
+        send = objc.objc_msgSend
+
+        def call(obj, name, restype=ctypes.c_void_p, argtypes=(), *args):
+            send.restype = restype
+            send.argtypes = [ctypes.c_void_p, ctypes.c_void_p] + list(argtypes)
+            return send(obj, objc.sel_registerName(name), *args)
+
+        def can(obj, name):
+            return call(obj, b"respondsToSelector:", ctypes.c_bool, [ctypes.c_void_p],
+                        objc.sel_registerName(name))
+
+        window = call(view, b"window")
+        if not window:
+            return
+        NONACTIVATING = 1 << 7
+        mask = call(window, b"styleMask", ctypes.c_ulong)
+        call(window, b"setStyleMask:", None, [ctypes.c_ulong], mask | NONACTIVATING)
+        # A mask changed after creation does not always reach the window
+        # server; this private call makes it stick where it exists.
+        if can(window, b"_setPreventsActivation:"):
+            call(window, b"_setPreventsActivation:", None, [ctypes.c_bool], True)
+        call(window, b"setHidesOnDeactivate:", None, [ctypes.c_bool], False)
+        if can(window, b"setBecomesKeyOnlyIfNeeded:"):
+            call(window, b"setBecomesKeyOnlyIfNeeded:", None, [ctypes.c_bool], True)
+        if can(window, b"setFloatingPanel:"):
+            call(window, b"setFloatingPanel:", None, [ctypes.c_bool], True)
+        # Every Space, and over full-screen apps too.
+        JOIN_ALL_SPACES = 1 << 0
+        STATIONARY = 1 << 4
+        FULL_SCREEN_AUXILIARY = 1 << 8
+        call(window, b"setCollectionBehavior:", None, [ctypes.c_ulong],
+             JOIN_ALL_SPACES | STATIONARY | FULL_SCREEN_AUXILIARY)
+    except Exception as exc:
+        from .crashlog import note
+        note("mac panel: %s" % exc)
 
 
 def _no_activate(hwnd):

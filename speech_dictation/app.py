@@ -68,6 +68,9 @@ _INSTANCE_NAME = "Local\\SpeechDictation.single"
 _SHOW_NAME = "Local\\SpeechDictation.show"
 _INSTANCE_HANDLE = None
 _SHOW_HANDLE = None
+_LOCAL_NAME = "SpeechDictation-single"
+_LOCAL_SERVER = None
+_LOCAL_SHOW = False
 
 
 def _kernel32():
@@ -105,7 +108,40 @@ def _claim_single_instance():
     return True
 
 
+def _claim_local_instance():
+    # macOS and Linux: a local socket plays the part of the Windows mutex.
+    # A second launch, for example a manual one after start at sign-in,
+    # asks the first to open Settings and quits.
+    global _LOCAL_SERVER
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+    name = "%s-%s" % (_LOCAL_NAME, os.environ.get("USER") or os.getuid())
+    probe = QLocalSocket()
+    probe.connectToServer(name)
+    if probe.waitForConnected(300):
+        probe.write(b"show")
+        probe.waitForBytesWritten(300)
+        probe.disconnectFromServer()
+        return False
+    # A crash can leave the socket file behind, which would block listen().
+    QLocalServer.removeServer(name)
+    _LOCAL_SERVER = QLocalServer()
+    _LOCAL_SERVER.newConnection.connect(_local_connection)
+    _LOCAL_SERVER.listen(name)
+    return True
+
+
+def _local_connection():
+    global _LOCAL_SHOW
+    while _LOCAL_SERVER.hasPendingConnections():
+        _LOCAL_SERVER.nextPendingConnection().deleteLater()
+        _LOCAL_SHOW = True
+
+
 def _show_requested():
+    global _LOCAL_SHOW
+    if _LOCAL_SHOW:
+        _LOCAL_SHOW = False
+        return True
     if not _SHOW_HANDLE:
         return False
     return _kernel32().WaitForSingleObject(_SHOW_HANDLE, 0) == 0
@@ -122,6 +158,8 @@ def main():
     qInstallMessageHandler(_qt_log)
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    if sys.platform != "win32" and not _claim_local_instance():
+        return
     if sys.platform.startswith("linux"):
         app.setDesktopFileName("speech-dictation")
     # Held here: the garbage collector otherwise frees it, taking the tray and timers.
@@ -154,6 +192,7 @@ class GeminiSpeech(QObject):
         self.silence = Silence()
         self._locked = False
         self._capturing = False
+        self._from_button = False
         self.indicator = indicator.Indicator()
         self.keys = hotkey.Hotkey()
         self.keys.failed.connect(self._fail)
@@ -182,8 +221,8 @@ class GeminiSpeech(QObject):
         self.menu.addAction(settings)
         self.menu.addAction(quit_)
         self.button = FloatingButton()
-        self.button.toggled.connect(lambda: self.toggle())
-        self.button.translate_toggled.connect(lambda: self.toggle("translate"))
+        self.button.toggled.connect(lambda: self.toggle(source="button"))
+        self.button.translate_toggled.connect(lambda: self.toggle("translate", source="button"))
         self.button.set_target(self.language)
         self.button.lock_changed.connect(self._lock_changed)
         self.button.hide_requested.connect(self._hide_button)
@@ -196,6 +235,7 @@ class GeminiSpeech(QObject):
 
     def start(self):
         desktop.start()
+        sounds.preload()
         self._arm_shortcut()
         from .crashlog import note
         note("tray shown")
@@ -381,7 +421,8 @@ class GeminiSpeech(QObject):
         try:
             startup.set_enabled(values["startup"])
         except OSError as exc:
-            self._overlay("error", "%s: %s" % (tr("Start with Windows"), exc))
+            label = tr("Start with Windows") if sys.platform == "win32" else tr("Start at login")
+            self._overlay("error", "%s: %s" % (label, exc))
         self._store()
         self.settings.shortcut.owned = record
         self.settings.translate.owned = translate
@@ -414,7 +455,7 @@ class GeminiSpeech(QObject):
             warm.open()
         return warm
 
-    def toggle(self, mode="record"):
+    def toggle(self, mode="record", source="shortcut"):
         from .crashlog import note
         if self.busy:
             note("toggle skipped")
@@ -457,6 +498,7 @@ class GeminiSpeech(QObject):
                 self._live.open()
             self.silence.reset()
             self._mode = mode
+            self._from_button = source == "button"
             self._show_button()
             self.recorder.on_chunk = self._on_chunk
             note("opening microphone")
@@ -550,6 +592,10 @@ class GeminiSpeech(QObject):
             # Settings came to the front while listening, so the text is only copied.
             QApplication.clipboard().setText(text.strip())
             self._overlay("error", messages.PASTE_FAILED)
+        elif self._from_button and not desktop.button_keeps_focus():
+            # GNOME and other Wayland desktops focused the button on the click.
+            QApplication.clipboard().setText(text.strip())
+            self._overlay("error", messages.COPIED_PRESS_PASTE)
         elif paste.paste_text(text):
             self._overlay("done")
         else:
