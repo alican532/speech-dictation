@@ -1,9 +1,39 @@
 """Small input widgets shared by the Settings and Usage windows."""
 
+import os
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractSpinBox, QComboBox, QDoubleSpinBox, QHBoxLayout, QPushButton, QWidget,
 )
+
+from . import paths
+
+
+def _asset(name):
+    # Style sheets take forward slashes on every system.
+    return os.path.join(paths.ASSETS, name).replace("\\", "/")
+
+
+def field_style(padding="8px 10px"):
+    """Text fields, drop-downs and amounts drawn alike: one box, one border, one chevron."""
+    return (
+        "QLineEdit, QComboBox, QDoubleSpinBox { background: #242830; color: #f2f4f8;"
+        " border: 1px solid #3c4250; border-radius: 8px; padding: %s; }"
+        "QLineEdit:hover, QComboBox:hover, QDoubleSpinBox:hover { border-color: #4d5566; }"
+        "QLineEdit:focus, QComboBox:focus, QComboBox:on, QDoubleSpinBox:focus { border-color: #3b82f6; }"
+        # The chevron sits inside the box's own right padding, with no button of its own.
+        "QComboBox { padding-right: 32px; }"
+        "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right;"
+        " width: 30px; border: none; background: transparent; }"
+        "QComboBox::down-arrow { image: url(%s); width: 12px; height: 12px; }"
+        "QComboBox::down-arrow:on { image: url(%s); }"
+        "QComboBox QAbstractItemView { background: #242830; color: #f2f4f8; border: 1px solid #3c4250;"
+        " padding: 4px; outline: 0; selection-background-color: #3b82f6; selection-color: white; }"
+        "QComboBox QAbstractItemView::item { min-height: 26px; padding: 0 8px; border-radius: 6px; }"
+        "QComboBox QAbstractItemView::item:hover { background: #343a46; }"
+        "QComboBox QAbstractItemView::item:selected { background: #3b82f6; color: white; }"
+    ) % (padding, _asset("chevron-down.svg"), _asset("chevron-up.svg"))
 
 
 class Combo(QComboBox):
@@ -61,10 +91,12 @@ class AmountField(QWidget):
         button.setAutoDefault(False)
         button.setFixedWidth(38)
         button.setAutoRepeat(True)
-        button.setStyleSheet("QPushButton { background: #2a2f39; border: 1px solid #3c4250; font-size: 15px;"
-                             " padding: 6px 0; }"
-                             "QPushButton:hover { background: #343a46; }"
-                             "QPushButton:disabled { color: #5c6370; }")
+        # Same box, border and hover as the fields beside it.
+        button.setStyleSheet("QPushButton { background: #242830; color: #e7e9ee; border: 1px solid #3c4250;"
+                             " border-radius: 8px; font-size: 15px; padding: 0; }"
+                             "QPushButton:hover { border-color: #4d5566; background: #2a2f39; }"
+                             "QPushButton:pressed { background: #3b82f6; border-color: #3b82f6; color: white; }"
+                             "QPushButton:disabled { color: #4d5566; border-color: #2c313b; }")
         button.clicked.connect(lambda: self.box.stepBy(direction))
         return button
 

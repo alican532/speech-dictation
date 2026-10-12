@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from . import i18n
 from . import paths
 from . import usage
-from .controls import Combo
+from .controls import Combo, field_style
 from .i18n import tr
 
 PERIODS = (
@@ -264,10 +264,7 @@ class UsageWindow(QDialog):
         self.setStyleSheet(
             "QDialog { background: #17191e; }"
             "QLabel { color: #e7e9ee; font-size: 13px; }"
-            "QComboBox { background: #242830; color: #f2f4f8; border: 1px solid #3c4250;"
-            " border-radius: 8px; padding: 6px 10px; }"
-            "QComboBox QAbstractItemView { background: #242830; color: #f2f4f8;"
-            " selection-background-color: #3b82f6; }"
+            + field_style("6px 10px") +
             "QPushButton { background: #2a2f39; color: #e7e9ee; border: 1px solid #3c4250;"
             " border-radius: 8px; padding: 7px 14px; }"
             "QPushButton:hover { background: #343a46; }"
@@ -623,6 +620,8 @@ class UsageWindow(QDialog):
         super().showEvent(event)
         self.refresh()
         self._timer.start()
+        # Opening with the period box focused would outline it as if picked.
+        self.tabs.tabBar().setFocus()
 
     def hideEvent(self, event):
         super().hideEvent(event)

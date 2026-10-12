@@ -13,7 +13,7 @@ from . import i18n
 from . import messages
 from . import paths
 from . import textproc
-from .controls import AmountField, Combo
+from .controls import AmountField, Combo, field_style
 from .i18n import tr
 
 LANGUAGES = (
@@ -233,10 +233,7 @@ class Settings(QDialog):
         self.setStyleSheet(
             "QDialog { background: #17191e; }"
             "QLabel { color: #e7e9ee; font-size: 13px; }"
-            "QLineEdit, QComboBox, QDoubleSpinBox { background: #242830; color: #f2f4f8; border: 1px solid #3c4250;"
-            " border-radius: 8px; padding: 8px 10px; }"
-            "QComboBox QAbstractItemView { background: #242830; color: #f2f4f8;"
-            " selection-background-color: #3b82f6; }"
+            + field_style() +
             "QPushButton { background: #3b82f6; color: white; border: none;"
             " border-radius: 8px; padding: 8px 14px; }"
             "QPushButton:hover { background: #5b97f7; }"
