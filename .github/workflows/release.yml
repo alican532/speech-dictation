@@ -3,6 +3,9 @@ name: Release
 on:
   release:
     types: [published]
+  # A manual run builds the installers and keeps them as run artifacts,
+  # without publishing a release.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,17 +24,19 @@ jobs:
           - os: macos-latest
             label: macOS
             asset: dist/SpeechDictation-macos.dmg
-          - os: ubuntu-latest
+          # Pinned, so the build machine changes only when we move it.
+          - os: ubuntu-24.04
             label: Linux
             asset: dist/SpeechDictation-linux.tar.gz
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Check version matches tag
+        if: github.event_name == 'release'
         shell: bash
         run: |
           app=$(python -c "import re;print(re.search(r'\"(.+?)\"', open('speech_dictation/__init__.py').read()).group(1))")
@@ -63,8 +68,17 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run -a python packaging/build.py
 
+      - name: Keep installer
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.label }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
       - name: Publish installer
-        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ matrix.asset }}
           fail_on_unmatched_files: true
