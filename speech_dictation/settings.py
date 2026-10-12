@@ -175,6 +175,7 @@ LABEL_WIDTH = 118
 
 def _label(text):
     label = QLabel(text)
+    label.setObjectName("formLabel")
     label.setFixedWidth(LABEL_WIDTH)
     return label
 
@@ -239,11 +240,6 @@ class Settings(QDialog):
             "QPushButton:hover { background: #5b97f7; }"
             "QCheckBox { color: #e7e9ee; font-size: 13px; }"
             "QScrollArea, #settingsBody { background: #17191e; border: none; }"
-            "QScrollBar:vertical { background: #17191e; width: 10px; margin: 4px 2px; }"
-            "QScrollBar::handle:vertical { background: #3c4250; border-radius: 3px; min-height: 40px; }"
-            "QScrollBar::handle:vertical:hover { background: #4d5566; }"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }"
         )
         # The sections scroll when the screen is too short for them; Save stays in view below.
         outer = QVBoxLayout(self)
@@ -344,6 +340,13 @@ class Settings(QDialog):
             layout.addWidget(box)
         # A window made taller than its content keeps the sections at the top.
         layout.addStretch(1)
+        # Every section lines its fields up at the widest label; fonts differ in width by system.
+        labels = self.findChildren(QLabel, "formLabel")
+        for label in labels:
+            label.ensurePolished()
+        widest = max([LABEL_WIDTH] + [label.sizeHint().width() for label in labels])
+        for label in labels:
+            label.setFixedWidth(widest)
 
         self._save_button = QPushButton(tr("Save"))
         self._save_button.setAutoDefault(False)

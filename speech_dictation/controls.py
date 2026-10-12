@@ -33,7 +33,20 @@ def field_style(padding="8px 10px"):
         "QComboBox QAbstractItemView::item { min-height: 26px; padding: 0 8px; border-radius: 6px; }"
         "QComboBox QAbstractItemView::item:hover { background: #343a46; }"
         "QComboBox QAbstractItemView::item:selected { background: #3b82f6; color: white; }"
-    ) % (padding, _asset("chevron-down.svg"), _asset("chevron-up.svg"))
+        # Check boxes and scroll bars are drawn too, or Linux and macOS show their own.
+        "QCheckBox { spacing: 8px; }"
+        "QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #4d5566; border-radius: 4px;"
+        " background: #242830; }"
+        "QCheckBox::indicator:hover { border-color: #6b7383; }"
+        "QCheckBox::indicator:checked { background: #3b82f6; border-color: #3b82f6; image: url(%s); }"
+        "QScrollBar:vertical { background: transparent; width: 10px; margin: 4px 2px; }"
+        "QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px 4px; }"
+        "QScrollBar::handle:vertical { background: #3c4250; border-radius: 3px; min-height: 40px; }"
+        "QScrollBar::handle:horizontal { background: #3c4250; border-radius: 3px; min-width: 40px; }"
+        "QScrollBar::handle:hover { background: #4d5566; }"
+        "QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }"
+        "QScrollBar::add-page, QScrollBar::sub-page { background: none; }"
+    ) % (padding, _asset("chevron-down.svg"), _asset("chevron-up.svg"), _asset("check.svg"))
 
 
 class Combo(QComboBox):
