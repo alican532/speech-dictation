@@ -11,6 +11,7 @@ GROQ_KEY_REJECTED = "Groq rejected the API key"
 GROQ_RATE_LIMIT = "Groq limit reached, try again shortly"
 GROQ_OFFLINE = "Could not reach Groq"
 TRANSLATE_NEEDS_GEMINI = "Translate needs a Gemini API key"
+TRANSLATE_FAILED = "Translation failed"
 SSL_FAILED = "SSL certificate failed — reinstall the Linux build"
 
 SHORTCUT_TITLE = "Shortcut"

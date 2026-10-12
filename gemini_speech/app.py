@@ -17,7 +17,7 @@ from . import sounds
 from . import speech
 from . import startup
 from .audio import Recorder, level
-from .settings import Settings
+from .settings import LANGUAGES, Settings
 from .vad import Silence
 from .widget import FloatingButton
 
@@ -143,6 +143,7 @@ class GeminiSpeech(QObject):
         self.auto_stop = 3
         self.trim = True
         self.sounds = True
+        self.translator = groq.TRANSLATORS[0]
         self.widget_pos = None
         self.recorder = Recorder()
         self.silence = Silence()
@@ -220,6 +221,7 @@ class GeminiSpeech(QObject):
             "shortcut": self.shortcut,
             "translate": self.translate,
             "language": self.language,
+            "translator": self.translator,
             "cancel": self.cancel,
         }
 
@@ -335,6 +337,7 @@ class GeminiSpeech(QObject):
         translate = self.translate = values["translate"]
         self.language = values["language"] or "en"
         self.button.set_target(self.language)
+        self.translator = values["translator"]
         cancel = self.cancel = values["cancel"] or "Esc"
         try:
             startup.set_enabled(values["startup"])
@@ -380,12 +383,10 @@ class GeminiSpeech(QObject):
         if self.recorder.active:
             self._finish()
             return
-        service = "gemini" if mode == "translate" else self.service
+        service = self.service
         if not self._key_for(service):
             note("toggle no api key")
-            if mode == "translate":
-                missing = messages.TRANSLATE_NEEDS_GEMINI
-            elif service == "gemini":
+            if service == "gemini":
                 missing = messages.API_KEY_MISSING
             else:
                 missing = messages.GROQ_KEY_MISSING
@@ -395,13 +396,18 @@ class GeminiSpeech(QObject):
         try:
             desktop.remember_focus()
             note("opening %s session" % service)
-            if mode == "translate":
+            if service == "gemini" and mode == "translate":
                 self._live = speech.LiveSession(self.api_key, self.language)
                 self._live.open()
             elif service == "gemini":
                 self._live = self._take_live()
             else:
-                self._live = groq.GroqSession(self.groq_key, service, self.spoken, self.trim)
+                target = ""
+                if mode == "translate":
+                    target = next((name for name, code in LANGUAGES if code == self.language), "English")
+                self._live = groq.GroqSession(
+                    self.groq_key, service, self.spoken, self.trim, target, self.translator
+                )
                 self._live.open()
             self.silence.reset()
             self._mode = mode
@@ -640,6 +646,8 @@ class GeminiSpeech(QObject):
             self.auto_stop = data["auto_stop"]
         if "trim" in data:
             self.trim = bool(data["trim"])
+        if data.get("translator") in groq.TRANSLATORS:
+            self.translator = data["translator"]
         if "sounds" in data:
             self.sounds = sounds.enabled = bool(data["sounds"])
         pos = data.get("widget_pos")
@@ -657,6 +665,7 @@ class GeminiSpeech(QObject):
                 "auto_stop": self.auto_stop,
                 "trim": self.trim,
                 "sounds": self.sounds,
+                "translator": self.translator,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,

@@ -36,6 +36,11 @@ SERVICES = (
     ("Gemini Live", "gemini"),
 )
 
+TRANSLATORS = (
+    ("GPT-OSS 120B (recommended)", "openai/gpt-oss-120b"),
+    ("GPT-OSS 20B (fastest)", "openai/gpt-oss-20b"),
+)
+
 AUTO_STOP = (
     ("Off", 0),
     ("After 2 s of silence", 2),
@@ -179,6 +184,9 @@ class Settings(QDialog):
         self.spoken.addItem("Detect automatically", "")
         for label, code in LANGUAGES:
             self.spoken.addItem(label, code)
+        self.translator = QComboBox()
+        for label, code in TRANSLATORS:
+            self.translator.addItem(label, code)
         self.auto_stop = QComboBox()
         for label, seconds in AUTO_STOP:
             self.auto_stop.addItem(label, seconds)
@@ -199,6 +207,7 @@ class Settings(QDialog):
         form.addRow("Record", self.shortcut)
         form.addRow("Translate", self.translate)
         form.addRow("Translate to", self.language)
+        form.addRow("Translate with", self.translator)
         form.addRow("Cancel", self.cancel)
         form.addRow("", self.trim)
         form.addRow("", self.sounds)
@@ -210,9 +219,10 @@ class Settings(QDialog):
         form.addRow("", self._save_button)
         layout.addLayout(form)
         hint = QLabel(
-            "Record types what you say. Translate always uses Gemini and types it in the "
-            "language you pick. The lock on the floating button keeps it listening "
-            "through pauses until you stop it."
+            "Record types what you say. Translate types it in the language you pick, "
+            "with the same service: Groq writes it down with Whisper and the model under "
+            "Translate with translates it; Gemini translates it live. The lock on the "
+            "floating button keeps it listening through pauses until you stop it."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #b7bcc8;")
@@ -231,6 +241,7 @@ class Settings(QDialog):
         self.cancel.setText(cancel)
         for combo, value in (
             (self.language, values["language"]),
+            (self.translator, values["translator"]),
             (self.service, values["service"]),
             (self.spoken, values["spoken"]),
             (self.auto_stop, values["auto_stop"]),
@@ -295,6 +306,7 @@ class Settings(QDialog):
             "shortcut": record,
             "translate": translate,
             "language": language,
+            "translator": self.translator.currentData() or TRANSLATORS[0][1],
             "cancel": cancel,
         })
         self._save_button.setText("Saved")
