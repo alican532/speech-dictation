@@ -4,7 +4,7 @@ import sys
 
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
-    QVBoxLayout,
+    QVBoxLayout, QWidget,
 )
 
 from . import __version__
@@ -146,6 +146,44 @@ def _combo(event, allow_bare=False):
     return "+".join(parts + [name])
 
 
+LABEL_WIDTH = 92
+
+
+def _label(text):
+    label = QLabel(text)
+    label.setFixedWidth(LABEL_WIDTH)
+    return label
+
+
+def _form():
+    box = QWidget()
+    form = QFormLayout(box)
+    form.setContentsMargins(0, 0, 0, 0)
+    form.setSpacing(10)
+    return box
+
+
+def _section(title, rows, note=""):
+    box = QWidget()
+    outer = QVBoxLayout(box)
+    outer.setContentsMargins(0, 6, 0, 0)
+    outer.setSpacing(8)
+    head = QLabel(title.upper())
+    head.setStyleSheet("color: #7d8490; font-size: 11px; font-weight: 600; letter-spacing: 1px;"
+                       " border-bottom: 1px solid #2c313b; padding-bottom: 4px;")
+    outer.addWidget(head)
+    inner = _form()
+    for text, widget in rows:
+        inner.layout().addRow(_label(text), widget)
+    outer.addWidget(inner)
+    if note:
+        hint = QLabel(note)
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        outer.addWidget(hint)
+    return box
+
+
 class Settings(QDialog):
     def __init__(self, on_save, on_close):
         super().__init__()
@@ -168,9 +206,7 @@ class Settings(QDialog):
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 20)
-        layout.setSpacing(14)
-        form = QFormLayout()
-        form.setSpacing(10)
+        layout.setSpacing(12)
         self.service = QComboBox()
         for label, code in SERVICES:
             self.service.addItem(label, code)
@@ -179,21 +215,21 @@ class Settings(QDialog):
         self.groq_key.setPlaceholderText("console.groq.com API key")
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("AI Studio API key (Gemini and Translate)")
+        self.api_key.setPlaceholderText("AI Studio API key")
         self.spoken = QComboBox()
         self.spoken.addItem("Detect automatically", "")
         for label, code in LANGUAGES:
             self.spoken.addItem(label, code)
         self.vocabulary = QLineEdit()
         self.vocabulary.setPlaceholderText("Names and terms, separated by commas")
-        self.correct = QCheckBox("Smart correction: fix misheard words (Groq)")
+        self.correct = QCheckBox("Smart correction: fix misheard words")
         self.translator = QComboBox()
         for label, code in TRANSLATORS:
             self.translator.addItem(label, code)
         self.auto_stop = QComboBox()
         for label, seconds in AUTO_STOP:
             self.auto_stop.addItem(label, seconds)
-        self.trim = QCheckBox("Cut pauses before sending (Groq)")
+        self.trim = QCheckBox("Cut pauses before sending")
         self.sounds = QCheckBox("Play a sound when listening starts and stops")
         self.startup = QCheckBox("Start with Windows")
         self.shortcut = ShortcutField()
@@ -202,38 +238,55 @@ class Settings(QDialog):
         for label, code in LANGUAGES:
             self.language.addItem(label, code)
         self.cancel = ShortcutField(allow_bare=True)
-        form.addRow("Service", self.service)
-        form.addRow("Groq key", self.groq_key)
-        form.addRow("Gemini key", self.api_key)
-        form.addRow("I speak", self.spoken)
-        form.addRow("Auto-stop", self.auto_stop)
-        form.addRow("Record", self.shortcut)
-        form.addRow("Translate", self.translate)
-        form.addRow("Translate to", self.language)
-        form.addRow("Text model", self.translator)
-        form.addRow("Vocabulary", self.vocabulary)
-        form.addRow("Cancel", self.cancel)
-        form.addRow("", self.correct)
-        form.addRow("", self.trim)
-        form.addRow("", self.sounds)
+
+        top = _form()
+        top.layout().addRow(_label("Service"), self.service)
+        layout.addWidget(top)
+
+        # Only the chosen service's own settings show; the general ones always do.
+        self._groq = _section("Groq", [
+            ("Groq key", self.groq_key),
+            ("I speak", self.spoken),
+            ("Text model", self.translator),
+            ("Vocabulary", self.vocabulary),
+            ("", self.correct),
+            ("", self.trim),
+        ], "Whisper writes down what you say. The Text model fixes words it misheard "
+           "and does the translating. Vocabulary words are always spelled the way you "
+           "write them.")
+        self._gemini = _section("Gemini", [
+            ("Gemini key", self.api_key),
+        ], "Gemini Live writes down what you say as you speak, and translates it live.")
+        general = [
+            ("Record", self.shortcut),
+            ("Translate", self.translate),
+            ("Translate to", self.language),
+            ("Cancel", self.cancel),
+            ("Auto-stop", self.auto_stop),
+            ("", self.sounds),
+        ]
         if sys.platform == "win32":
-            form.addRow("", self.startup)
+            general.append(("", self.startup))
+        self._general = _section("General", general,
+            "The lock on the floating button keeps it listening through pauses until you stop it.")
+        layout.addWidget(self._groq)
+        layout.addWidget(self._gemini)
+        layout.addWidget(self._general)
+
         self._save_button = QPushButton("Save")
         self._save_button.setAutoDefault(False)
         self._save_button.clicked.connect(self._save)
-        form.addRow("", self._save_button)
-        layout.addLayout(form)
-        hint = QLabel(
-            "Record types what you say. Translate types it in the language you pick, "
-            "with the same service: Groq writes it down with Whisper and the Text model "
-            "translates it; Gemini translates it live. Smart correction lets the Text "
-            "model fix words Whisper misheard. Vocabulary words are spelled the way you write them. The lock on the "
-            "floating button keeps it listening through pauses until you stop it."
-        )
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color: #b7bcc8;")
-        layout.addWidget(hint)
+        layout.addWidget(self._save_button)
         layout.addWidget(VersionLink())
+        self.service.currentIndexChanged.connect(self._show_service)
+        self._show_service()
+
+    def _show_service(self):
+        gemini = self.service.currentData() == "gemini"
+        self._groq.setVisible(not gemini)
+        self._gemini.setVisible(gemini)
+        if self.isVisible():
+            QTimer.singleShot(0, self._fit)
 
     def set_values(self, values):
         self.api_key.setText(values["api_key"])
