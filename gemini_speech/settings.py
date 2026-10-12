@@ -184,6 +184,9 @@ class Settings(QDialog):
         self.spoken.addItem("Detect automatically", "")
         for label, code in LANGUAGES:
             self.spoken.addItem(label, code)
+        self.vocabulary = QLineEdit()
+        self.vocabulary.setPlaceholderText("Names and terms, separated by commas")
+        self.correct = QCheckBox("Smart correction: fix misheard words (Groq)")
         self.translator = QComboBox()
         for label, code in TRANSLATORS:
             self.translator.addItem(label, code)
@@ -207,8 +210,10 @@ class Settings(QDialog):
         form.addRow("Record", self.shortcut)
         form.addRow("Translate", self.translate)
         form.addRow("Translate to", self.language)
-        form.addRow("Translate with", self.translator)
+        form.addRow("Text model", self.translator)
+        form.addRow("Vocabulary", self.vocabulary)
         form.addRow("Cancel", self.cancel)
+        form.addRow("", self.correct)
         form.addRow("", self.trim)
         form.addRow("", self.sounds)
         if sys.platform == "win32":
@@ -220,8 +225,9 @@ class Settings(QDialog):
         layout.addLayout(form)
         hint = QLabel(
             "Record types what you say. Translate types it in the language you pick, "
-            "with the same service: Groq writes it down with Whisper and the model under "
-            "Translate with translates it; Gemini translates it live. The lock on the "
+            "with the same service: Groq writes it down with Whisper and the Text model "
+            "translates it; Gemini translates it live. Smart correction lets the Text "
+            "model fix words Whisper misheard. Vocabulary words are spelled the way you write them. The lock on the "
             "floating button keeps it listening through pauses until you stop it."
         )
         hint.setWordWrap(True)
@@ -250,6 +256,8 @@ class Settings(QDialog):
             combo.setCurrentIndex(index if index >= 0 else 0)
         self.trim.setChecked(values["trim"])
         self.sounds.setChecked(values["sounds"])
+        self.correct.setChecked(values["correct"])
+        self.vocabulary.setText(values["vocabulary"])
         self.startup.setChecked(values["startup"])
 
     def closeEvent(self, event):
@@ -302,6 +310,8 @@ class Settings(QDialog):
             "auto_stop": int(self.auto_stop.currentData() or 0),
             "trim": self.trim.isChecked(),
             "sounds": self.sounds.isChecked(),
+            "correct": self.correct.isChecked(),
+            "vocabulary": self.vocabulary.text().strip(),
             "startup": self.startup.isChecked(),
             "shortcut": record,
             "translate": translate,

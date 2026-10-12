@@ -144,6 +144,8 @@ class GeminiSpeech(QObject):
         self.trim = True
         self.sounds = True
         self.translator = groq.TRANSLATORS[0]
+        self.correct = True
+        self.vocabulary = "Claude"
         self.widget_pos = None
         self.recorder = Recorder()
         self.silence = Silence()
@@ -222,6 +224,8 @@ class GeminiSpeech(QObject):
             "translate": self.translate,
             "language": self.language,
             "translator": self.translator,
+            "correct": self.correct,
+            "vocabulary": self.vocabulary,
             "cancel": self.cancel,
         }
 
@@ -338,6 +342,8 @@ class GeminiSpeech(QObject):
         self.language = values["language"] or "en"
         self.button.set_target(self.language)
         self.translator = values["translator"]
+        self.correct = values["correct"]
+        self.vocabulary = values["vocabulary"]
         cancel = self.cancel = values["cancel"] or "Esc"
         try:
             startup.set_enabled(values["startup"])
@@ -405,8 +411,10 @@ class GeminiSpeech(QObject):
                 target = ""
                 if mode == "translate":
                     target = next((name for name, code in LANGUAGES if code == self.language), "English")
+                spoken = next((name for name, code in LANGUAGES if code == self.spoken), "")
                 self._live = groq.GroqSession(
-                    self.groq_key, service, self.spoken, self.trim, target, self.translator
+                    self.groq_key, service, self.spoken, self.trim, target, self.translator,
+                    correct=self.correct, spoken_name=spoken, vocabulary=self.vocabulary,
                 )
                 self._live.open()
             self.silence.reset()
@@ -648,6 +656,10 @@ class GeminiSpeech(QObject):
             self.trim = bool(data["trim"])
         if data.get("translator") in groq.TRANSLATORS:
             self.translator = data["translator"]
+        if "correct" in data:
+            self.correct = bool(data["correct"])
+        if isinstance(data.get("vocabulary"), str):
+            self.vocabulary = data["vocabulary"]
         if "sounds" in data:
             self.sounds = sounds.enabled = bool(data["sounds"])
         pos = data.get("widget_pos")
@@ -666,6 +678,8 @@ class GeminiSpeech(QObject):
                 "trim": self.trim,
                 "sounds": self.sounds,
                 "translator": self.translator,
+                "correct": self.correct,
+                "vocabulary": self.vocabulary,
                 "widget_pos": list(self.widget_pos) if self.widget_pos else None,
                 "shortcut": self.shortcut,
                 "translate": self.translate,
