@@ -3,7 +3,7 @@ from PyQt6.QtGui import QDesktopServices, QIcon
 import sys
 
 from PyQt6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+    QApplication, QCheckBox, QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
     QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
@@ -13,6 +13,7 @@ from . import i18n
 from . import messages
 from . import paths
 from . import textproc
+from .controls import AmountField, Combo
 from .i18n import tr
 
 LANGUAGES = (
@@ -224,7 +225,11 @@ class Settings(QDialog):
         self._on_capture = on_capture
         self.setWindowTitle("Speech Dictation")
         self.setWindowIcon(QIcon(paths.ICON))
-        self.setMinimumWidth(460)
+        # A normal window with minimize and maximize, so Windows can snap and resize it.
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinMaxButtonsHint
+                            | Qt.WindowType.WindowCloseButtonHint)
+        self.setMinimumSize(460, 360)
+        self._sized = False
         self.setStyleSheet(
             "QDialog { background: #17191e; }"
             "QLabel { color: #e7e9ee; font-size: 13px; }"
@@ -257,7 +262,7 @@ class Settings(QDialog):
         layout = QVBoxLayout(body)
         layout.setContentsMargins(22, 20, 22, 12)
         layout.setSpacing(12)
-        self.service = QComboBox()
+        self.service = Combo()
         for label, code in SERVICES:
             self.service.addItem(label, code)
         self.groq_key = _key_field(tr("console.groq.com API key"))
@@ -268,27 +273,22 @@ class Settings(QDialog):
             "groq": self.groq_key, "elevenlabs": self.elevenlabs_key,
             "gemini": self.api_key, "google": self.google_key,
         }
-        self.spoken = QComboBox()
+        self.spoken = Combo()
         self.spoken.addItem(tr("Detect automatically"), "")
         for label, code in LANGUAGES:
             self.spoken.addItem(tr(label), code)
         self.vocabulary = QLineEdit()
         self.vocabulary.setPlaceholderText(tr("Names and terms, separated by commas"))
-        self.corrector = QComboBox()
-        self.translator = QComboBox()
+        self.corrector = Combo()
+        self.translator = Combo()
         # The engine picked last, kept while another service hides it.
         self._chosen = {"corrector": "off", "translator": ""}
-        self.auto_stop = QComboBox()
+        self.auto_stop = Combo()
         for seconds in AUTO_STOP:
             label = tr("After %d s of silence") % seconds if seconds else tr("Off")
             self.auto_stop.addItem(label, seconds)
-        self.budget = QDoubleSpinBox()
-        self.budget.setRange(0, 10000)
-        self.budget.setDecimals(2)
-        self.budget.setSingleStep(1)
-        self.budget.setPrefix("$")
         # 0 is off; it shows as a word, not as $0.00.
-        self.budget.setSpecialValueText(tr("Off"))
+        self.budget = AmountField(tr("Off"))
         self.budget.setToolTip(tr("A tray message when this month's estimated cost passes this amount"))
         self.trim = QCheckBox(tr("Cut pauses before sending"))
         self.no_verbatim = QCheckBox(tr("Leave out filler words (um, uh)"))
@@ -296,10 +296,10 @@ class Settings(QDialog):
         self.startup = QCheckBox(tr("Start with Windows") if sys.platform == "win32" else tr("Start at login"))
         self.shortcut = ShortcutField()
         self.translate = ShortcutField()
-        self.language = QComboBox()
+        self.language = Combo()
         for label, code in LANGUAGES:
             self.language.addItem(tr(label), code)
-        self.app_language = QComboBox()
+        self.app_language = Combo()
         for label, code in i18n.LANGUAGES:
             self.app_language.addItem(label, code)
         self.cancel = ShortcutField(allow_bare=True)
@@ -345,6 +345,8 @@ class Settings(QDialog):
                "The monthly budget warns you once a month when the estimated cost on the Usage page passes it."))
         for box in (self._keys_box, self._speech, self._text, self._general):
             layout.addWidget(box)
+        # A window made taller than its content keeps the sections at the top.
+        layout.addStretch(1)
 
         self._save_button = QPushButton(tr("Save"))
         self._save_button.setAutoDefault(False)
@@ -451,6 +453,10 @@ class Settings(QDialog):
         QTimer.singleShot(0, self._fit)
 
     def _fit(self):
+        # Sized to the content once; after that the size is the user's.
+        if self._sized:
+            return
+        self._sized = True
         body = self._scroll.widget()
         body.layout().invalidate()
         body.layout().activate()
@@ -462,10 +468,7 @@ class Settings(QDialog):
             room = screen.availableGeometry().height() - (self.frameGeometry().height() - self.height()) - 8
             height = min(height, room)
         width = max(self.minimumWidth(), content.width() + self._scroll.verticalScrollBar().sizeHint().width())
-        self.setMinimumHeight(0)
-        self.setMaximumHeight(16777215)
         self.resize(width, height)
-        self.setFixedHeight(height)
         # A window taller than the room left above it moves up.
         if screen is not None:
             area = screen.availableGeometry()

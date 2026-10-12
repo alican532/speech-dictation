@@ -4,7 +4,7 @@ import time
 from PyQt6.QtCore import QRectF, QStandardPaths, Qt, QTimer
 from PyQt6.QtGui import QColor, QIcon, QPainter
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
+    QAbstractItemView, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
     QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QTabWidget, QToolTip, QTreeWidget,
     QTreeWidgetItem, QVBoxLayout, QWidget,
 )
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 from . import i18n
 from . import paths
 from . import usage
+from .controls import Combo
 from .i18n import tr
 
 PERIODS = (
@@ -256,6 +257,8 @@ class UsageWindow(QDialog):
         self._budget = budget
         self.setWindowTitle(tr("Usage") + " - Speech Dictation")
         self.setWindowIcon(QIcon(paths.ICON))
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinMaxButtonsHint
+                            | Qt.WindowType.WindowCloseButtonHint)
         self.setMinimumSize(760, 600)
         self.resize(1100, 720)
         self.setStyleSheet(
@@ -290,7 +293,7 @@ class UsageWindow(QDialog):
         title.setStyleSheet("font-size: 18px; font-weight: 600;")
         top.addWidget(title)
         top.addStretch(1)
-        self.period = QComboBox()
+        self.period = Combo()
         for label, code in PERIODS:
             self.period.addItem(tr(label), code)
         self.period.setCurrentIndex(2)
@@ -446,11 +449,11 @@ class UsageWindow(QDialog):
             bar.addWidget(button)
         self.grouped_button.setChecked(True)
         bar.addSpacing(8)
-        self.model_filter = QComboBox()
+        self.model_filter = Combo()
         self.model_filter.addItem(tr("All models"), "")
         self.model_filter.currentIndexChanged.connect(self._fill_details_now)
         bar.addWidget(self.model_filter, 1)
-        self.status_filter = QComboBox()
+        self.status_filter = Combo()
         self.status_filter.addItem(tr("Any status"), "")
         for status in usage.STATUSES:
             self.status_filter.addItem(tr(STATUS_LABELS[status]), status)
