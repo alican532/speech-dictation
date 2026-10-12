@@ -3,14 +3,16 @@ import sys
 
 from PyQt6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPen
-from PyQt6.QtWidgets import QApplication, QMenu, QToolTip, QWidget
+from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 
 MARGIN = 6
-HEIGHT = 52
-WIDTH = 224
+HEIGHT = 48
+PAD = 8
+GAP = 6
 MIC = 40
 SIDE = 32
 CLOSE = 26
+WIDTH = PAD + SIDE + GAP + MIC + GAP + CLOSE + PAD
 
 BG = QColor(28, 31, 37, 242)
 EDGE = QColor(255, 255, 255, 28)
@@ -24,7 +26,7 @@ GLYPH = QColor(236, 238, 242)
 DIM = QColor(150, 156, 168)
 
 # Segoe Fluent Icons ships with Windows 11, Segoe MDL2 Assets with Windows 10.
-_GLYPHS = {"mic": "\uE720", "lock": "\uE72E", "unlock": "\uE785", "gear": "\uE713", "close": "\uE8BB"}
+_GLYPHS = {"mic": "\uE720", "lock": "\uE72E", "unlock": "\uE785", "close": "\uE8BB"}
 
 
 def _icon_font():
@@ -39,15 +41,13 @@ class FloatingButton(QWidget):
     """A small always-on-top bar, like Windows voice typing.
 
     It never takes focus, so the text still lands in the window you were
-    typing in. Drag it anywhere; it remembers where it was left. The cross
-    hides it until the next dictation starts.
+    typing in. Drag it by any spot outside the buttons; it remembers where
+    it was left. The cross hides it until the next dictation starts.
     """
 
     toggled = pyqtSignal()
     lock_changed = pyqtSignal(bool)
-    settings_requested = pyqtSignal()
     hide_requested = pyqtSignal()
-    quit_requested = pyqtSignal()
     moved = pyqtSignal(int, int)
 
     def __init__(self):
@@ -84,30 +84,24 @@ class FloatingButton(QWidget):
     def _body(self):
         return QRectF(MARGIN, MARGIN, WIDTH, HEIGHT)
 
-    def _mic_rect(self):
-        body = self._body()
-        return QRectF(body.center().x() - MIC / 2, body.center().y() - MIC / 2, MIC, MIC)
-
     def _lock_rect(self):
-        mic = self._mic_rect()
-        return QRectF(mic.left() - 12 - SIDE, mic.center().y() - SIDE / 2, SIDE, SIDE)
+        body = self._body()
+        return QRectF(body.left() + PAD, body.center().y() - SIDE / 2, SIDE, SIDE)
 
-    def _gear_rect(self):
-        mic = self._mic_rect()
-        return QRectF(mic.right() + 12, mic.center().y() - SIDE / 2, SIDE, SIDE)
+    def _mic_rect(self):
+        lock = self._lock_rect()
+        return QRectF(lock.right() + GAP, lock.center().y() - MIC / 2, MIC, MIC)
 
     def _close_rect(self):
         body = self._body()
-        return QRectF(body.right() - 12 - CLOSE, body.center().y() - CLOSE / 2, CLOSE, CLOSE)
+        return QRectF(body.right() - PAD - CLOSE, body.center().y() - CLOSE / 2, CLOSE, CLOSE)
 
     def _part_at(self, pos):
         point = QPointF(pos)
-        if self._mic_rect().adjusted(-4, -4, 4, 4).contains(point):
+        if self._mic_rect().contains(point):
             return "mic"
         if self._lock_rect().contains(point):
             return "lock"
-        if self._gear_rect().contains(point):
-            return "gear"
         if self._close_rect().contains(point):
             return "close"
         if self._body().contains(point):
@@ -171,9 +165,6 @@ class FloatingButton(QWidget):
     # Mouse --------------------------------------------------------------
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.RightButton:
-            self._menu(event.globalPosition().toPoint())
-            return
         if event.button() != Qt.MouseButton.LeftButton:
             return
         self._press = self._part_at(event.position().toPoint())
@@ -216,8 +207,6 @@ class FloatingButton(QWidget):
         elif part == "lock":
             self.set_locked(not self.locked)
             self.lock_changed.emit(self.locked)
-        elif part == "gear":
-            self.settings_requested.emit()
         elif part == "close":
             self._hover = ""
             QToolTip.hideText()
@@ -234,20 +223,9 @@ class FloatingButton(QWidget):
             return "Stop" if self.state == "recording" else "Start dictation"
         if part == "lock":
             return "Keep listening until I stop" if not self.locked else "Locked: auto-stop is off"
-        if part == "gear":
-            return "Settings"
         if part == "close":
             return "Hide until the next dictation"
         return ""
-
-    def _menu(self, pos):
-        menu = QMenu(self)
-        menu.addAction("Settings", self.settings_requested.emit)
-        menu.addSeparator()
-        menu.addAction("Quit", self.quit_requested.emit)
-        menu.exec(pos)
-
-    # Painting -----------------------------------------------------------
 
     def paintEvent(self, _event):
         painter = QPainter(self)
@@ -262,19 +240,9 @@ class FloatingButton(QWidget):
         painter.fillPath(path, BG)
         painter.setPen(QPen(EDGE, 1))
         painter.drawPath(path)
-        self._draw_grip(painter, body)
         self._draw_lock(painter)
-        self._draw_gear(painter)
         self._draw_close(painter)
         self._draw_mic(painter)
-
-    def _draw_grip(self, painter, body):
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 45))
-        x = body.left() + 14
-        for row in range(3):
-            for col in range(2):
-                painter.drawEllipse(QPointF(x + col * 5, body.center().y() - 5 + row * 5), 1.3, 1.3)
 
     def _round_button(self, painter, rect, hover, fill=None):
         painter.setPen(Qt.PenStyle.NoPen)
@@ -308,22 +276,6 @@ class FloatingButton(QWidget):
         painter.drawRoundedRect(QRectF(c.x() - 6, c.y() - 1, 12, 9), 2, 2)
         lift = 0 if self.locked else 3
         painter.drawArc(QRectF(c.x() - 4, c.y() - 8 - lift, 8, 10), 0, 180 * 16)
-
-    def _draw_gear(self, painter):
-        rect = self._gear_rect()
-        self._round_button(painter, rect, self._hover == "gear")
-        if self._glyph(painter, rect, "gear", DIM, 15):
-            return
-        c = rect.center()
-        painter.setPen(QPen(DIM, 1.6))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(c, 5, 5)
-        for step in range(8):
-            angle = step * math.pi / 4
-            painter.drawLine(
-                QPointF(c.x() + 5 * math.cos(angle), c.y() + 5 * math.sin(angle)),
-                QPointF(c.x() + 7.5 * math.cos(angle), c.y() + 7.5 * math.sin(angle)),
-            )
 
     def _draw_close(self, painter):
         rect = self._close_rect()
