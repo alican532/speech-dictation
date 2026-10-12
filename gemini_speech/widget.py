@@ -1,7 +1,7 @@
 import math
 import sys
 
-from PyQt6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QLineF, QPoint, QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QApplication, QToolTip, QWidget
 
@@ -12,6 +12,7 @@ GAP = 6
 MIC = 40
 SIDE = 32
 CLOSE = 26
+BADGE = 19
 WIDTH = PAD + SIDE + GAP + MIC + GAP + CLOSE + PAD
 
 BG = QColor(28, 31, 37, 150)
@@ -46,6 +47,7 @@ class FloatingButton(QWidget):
     """
 
     toggled = pyqtSignal()
+    translate_toggled = pyqtSignal()
     lock_changed = pyqtSignal(bool)
     hide_requested = pyqtSignal()
     moved = pyqtSignal(int, int)
@@ -66,6 +68,8 @@ class FloatingButton(QWidget):
         self.setFixedSize(WIDTH + MARGIN * 2, HEIGHT + MARGIN * 2)
         self._font = _icon_font()
         self.state = "idle"
+        self.mode = "record"
+        self.target = "EN"
         self.locked = False
         self.level = 0.0
         self.countdown = None
@@ -96,8 +100,18 @@ class FloatingButton(QWidget):
         body = self._body()
         return QRectF(body.right() - PAD - CLOSE, body.center().y() - CLOSE / 2, CLOSE, CLOSE)
 
+    def _badge_rect(self):
+        # Sits on the microphone's top-right edge, like a notification badge.
+        mic = self._mic_rect()
+        cx = mic.center().x() + MIC * 0.36
+        cy = mic.center().y() - MIC * 0.36
+        return QRectF(cx - BADGE / 2, cy - BADGE / 2, BADGE, BADGE)
+
     def _part_at(self, pos):
         point = QPointF(pos)
+        badge = self._badge_rect()
+        if QLineF(point, badge.center()).length() <= BADGE / 2 + 2:
+            return "translate"
         if self._mic_rect().contains(point):
             return "mic"
         if self._lock_rect().contains(point):
@@ -110,12 +124,17 @@ class FloatingButton(QWidget):
 
     # State --------------------------------------------------------------
 
-    def set_state(self, state):
+    def set_state(self, state, mode="record"):
         self.state = state
+        self.mode = mode
         if state != "recording":
             self.level = 0.0
             self.countdown = None
         self._sync_timer()
+        self.update()
+
+    def set_target(self, language):
+        self.target = (language or "en").split("-")[0].upper()[:2]
         self.update()
 
     def set_locked(self, locked):
@@ -204,6 +223,8 @@ class FloatingButton(QWidget):
             return
         if part == "mic":
             self.toggled.emit()
+        elif part == "translate":
+            self.translate_toggled.emit()
         elif part == "lock":
             self.set_locked(not self.locked)
             self.lock_changed.emit(self.locked)
@@ -221,6 +242,10 @@ class FloatingButton(QWidget):
     def _tip(self, part):
         if part == "mic":
             return "Stop" if self.state == "recording" else "Start dictation"
+        if part == "translate":
+            if self.state == "recording":
+                return "Stop"
+            return "Translate into %s" % self.target
         if part == "lock":
             return "Keep listening until I stop" if not self.locked else "Locked: auto-stop is off"
         if part == "close":
@@ -243,6 +268,7 @@ class FloatingButton(QWidget):
         self._draw_lock(painter)
         self._draw_close(painter)
         self._draw_mic(painter)
+        self._draw_badge(painter)
 
     def _round_button(self, painter, rect, hover, fill=None):
         painter.setPen(Qt.PenStyle.NoPen)
@@ -289,6 +315,26 @@ class FloatingButton(QWidget):
         painter.drawLine(QPointF(c.x() - 4, c.y() - 4), QPointF(c.x() + 4, c.y() + 4))
         painter.drawLine(QPointF(c.x() + 4, c.y() - 4), QPointF(c.x() - 4, c.y() + 4))
 
+    def _draw_badge(self, painter):
+        rect = self._badge_rect()
+        active = self.state == "recording" and self.mode == "translate"
+        if active:
+            fill = BUSY
+        elif self._hover == "translate":
+            fill = QColor(78, 86, 102)
+        else:
+            fill = QColor(58, 64, 76)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(fill)
+        painter.drawEllipse(rect)
+        _draw_badge_ring(painter, rect)
+        font = QFont(self.font())
+        font.setPixelSize(8)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor(255, 255, 255) if active else GLYPH)
+        painter.drawText(rect, int(Qt.AlignmentFlag.AlignCenter), self.target)
+
     def _draw_mic(self, painter):
         rect = self._mic_rect()
         c = rect.center()
@@ -334,6 +380,13 @@ class FloatingButton(QWidget):
         painter.drawRoundedRect(QRectF(c.x() - 3.5, c.y() - 9, 7, 12), 3.5, 3.5)
         painter.drawArc(QRectF(c.x() - 6.5, c.y() - 4, 13, 10), 180 * 16, 180 * 16)
         painter.drawLine(QPointF(c.x(), c.y() + 6), QPointF(c.x(), c.y() + 9))
+
+
+def _draw_badge_ring(painter, rect):
+    # A dark rim cuts the badge out of the microphone circle under it.
+    painter.setPen(QPen(QColor(24, 26, 31, 235), 2.2))
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    painter.drawEllipse(rect.adjusted(-1.1, -1.1, 1.1, 1.1))
 
 
 def _no_activate(hwnd):

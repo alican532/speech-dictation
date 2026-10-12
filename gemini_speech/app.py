@@ -175,6 +175,8 @@ class GeminiSpeech(QObject):
         self.menu.addAction(quit_)
         self.button = FloatingButton()
         self.button.toggled.connect(lambda: self.toggle())
+        self.button.translate_toggled.connect(lambda: self.toggle("translate"))
+        self.button.set_target(self.language)
         self.button.lock_changed.connect(self._lock_changed)
         self.button.hide_requested.connect(self._hide_button)
         self.button.moved.connect(self._button_moved)
@@ -332,6 +334,7 @@ class GeminiSpeech(QObject):
         record = self.shortcut = values["shortcut"]
         translate = self.translate = values["translate"]
         self.language = values["language"] or "en"
+        self.button.set_target(self.language)
         cancel = self.cancel = values["cancel"] or "Esc"
         try:
             startup.set_enabled(values["startup"])
@@ -401,6 +404,7 @@ class GeminiSpeech(QObject):
                 self._live = groq.GroqSession(self.groq_key, service, self.spoken, self.trim)
                 self._live.open()
             self.silence.reset()
+            self._mode = mode
             self._show_button()
             self.recorder.on_chunk = self._on_chunk
             note("opening microphone")
@@ -685,7 +689,7 @@ class GeminiSpeech(QObject):
         if self.busy or self._stopping:
             self.button.set_state("busy")
         elif self.recorder.active:
-            self.button.set_state("recording")
+            self.button.set_state("recording", getattr(self, "_mode", "record"))
         else:
             self.button.set_state("idle")
 
