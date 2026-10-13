@@ -19,7 +19,7 @@ EDGE = QColor(58, 63, 74)
 # Words the service has settled on, and words it may still change.
 FINAL = QColor(231, 233, 238)
 INTERIM = QColor(150, 157, 170)
-CAPTION_WIDTH = 420
+CAPTION_WIDTH = 460
 CAPTION_LINES = 3
 CAPTION_LEFT = 26
 CAPTION_PAD = 7
@@ -54,7 +54,7 @@ class Indicator(QWidget):
         self._area = None
         self._caption = Caption()
         self._caption_font = QFont(self.font())
-        self._caption_font.setPointSizeF(max(10.0, self.font().pointSizeF()))
+        self._caption_font.setPointSizeF(max(11.0, self.font().pointSizeF()))
         self._timer = QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._tick)

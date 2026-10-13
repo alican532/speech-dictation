@@ -1,6 +1,6 @@
 [project]
 name = "speech-dictation"
-version = "2.1.0"
+version = "2.1.1"
 description = "Tray dictation and translation with Groq Whisper or Gemini Live."
 readme = "README.md"
 requires-python = ">=3.11"

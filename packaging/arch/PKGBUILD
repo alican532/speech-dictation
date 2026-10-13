@@ -2,7 +2,7 @@
 # CachyOS / Arch: download this file next to the release tarball, then:
 #   makepkg -si
 pkgname=speech-dictation-bin
-pkgver=2.1.0
+pkgver=2.1.1
 pkgrel=1
 pkgdesc="Tray dictation and translation with Groq Whisper or Gemini Live"
 arch=('x86_64')
