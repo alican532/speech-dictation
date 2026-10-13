@@ -272,6 +272,16 @@ class Settings(QDialog):
             self.spoken.addItem(tr(label), code)
         self.vocabulary = QLineEdit()
         self.vocabulary.setPlaceholderText(tr("Names and terms, separated by commas"))
+        # The placeholder goes once there is text, so the format stays in view here.
+        self._vocabulary_row = QWidget()
+        column = QVBoxLayout(self._vocabulary_row)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        column.addWidget(self.vocabulary)
+        hint = QLabel(tr("Separate with commas, for example: Claude, Alican, Google Ads"))
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #9aa0ac; font-size: 12px;")
+        column.addWidget(hint)
         self.corrector = Combo()
         self.translator = Combo()
         # The engine picked last, kept while another service hides it.
@@ -315,7 +325,7 @@ class Settings(QDialog):
         ])
         self._speech = _section(tr("Speech"), [
             (tr("I speak"), self.spoken),
-            (tr("Vocabulary"), self.vocabulary),
+            (tr("Vocabulary"), self._vocabulary_row),
             ("", self.trim),
             ("", self.no_verbatim),
             ("", self.keyterms),
@@ -411,7 +421,7 @@ class Settings(QDialog):
         prompts = corrector != "off" or translator not in ("google", "gemini-live", "elevenlabs")
         form = self._speech.form
         form.setRowVisible(self.spoken, not live or corrector != "off")
-        form.setRowVisible(self.vocabulary, not live or prompts)
+        form.setRowVisible(self._vocabulary_row, not live or prompts)
         form.setRowVisible(self.trim, service in ("groq", "groq-turbo", "elevenlabs"))
         form.setRowVisible(self.no_verbatim, own == "elevenlabs")
         form.setRowVisible(self.keyterms, own == "elevenlabs")
