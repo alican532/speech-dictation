@@ -191,6 +191,10 @@ class LiveSession:
             blob.extend(extra)
         return bytes(blob)
 
+    def preview(self):
+        # Read from the UI thread while _run appends; a torn read only shows one tick late.
+        return self._text()
+
     def _text(self):
         if self._language:
             return " ".join(self._translated.split())

@@ -28,6 +28,7 @@ ElevenLabs düzenleme yalnızca ElevenLabs metinlerinde, Gemini Live çevirisi y
   - **Mikrofonun köşesindeki dil rozeti** (örneğin `EN`): o dile çeviriyi başlatır ya da durdurur. Çeviri sırasında maviye döner.
   - **Kilit:** siz durdurana kadar duraklamalarda da dinlemeye devam eder.
   - **✕:** çubuğu gizler (süren bir kayıt varsa iptal eder). Bir sonraki dikte onu geri getirir.
+- **Canlı önizleme (Scribe v2 Realtime, Gemini Live).** Siz konuşurken o ana kadar duyulan kelimeler kayıt noktasının yanındaki küçük bir balonda görünür. Metin yine siz durunca, düzeltme ya da çeviriden sonra yapıştırılır.
 - **Otomatik durdurma.** Birkaç saniye sessiz kalınca kayıt biter ve metin yapıştırılır; son saniyeleri bir halka geri sayar. Hiç konuşulmazsa kayıt atılır ve hiçbir şey gönderilmez.
 - **Sesler.** Windows'ta, Windows sesle yazmanın başlama, bitiş ve iptal sesleri; macOS ve Linux'ta uygulamanın `assets/sounds` içindeki kendi sesleri.
 - **Duraklama kesme (Groq, ElevenLabs Scribe v2).** Cümlelerin önündeki, arkasındaki ve aralarındaki sessizlik gönderilmeden kesilir. Bu hem hızlandırır, hem ucuzlatır, hem de modelin sessizlikte metin uydurmasını önler; "Altyazı M.K." gibi bilinen hayalet cümleler de atılır.

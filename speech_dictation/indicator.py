@@ -1,6 +1,6 @@
 import math
 
-from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
+from PyQt6.QtCore import Qt, QTimer, QRect, QRectF, QPointF
 from PyQt6.QtGui import QColor, QCursor, QFont, QPainter, QPainterPath, QPen, QFontMetrics
 from PyQt6.QtWidgets import QWidget, QApplication
 
@@ -13,6 +13,10 @@ OK = QColor(80, 205, 140)
 ERR = QColor(240, 100, 90)
 BUSY = QColor(120, 170, 255)
 BG = QColor(22, 24, 29, 230)
+TEXT = QColor(231, 233, 238)
+EDGE = QColor(58, 63, 74)
+PREVIEW_WIDTH = 440
+PREVIEW_LINES = 2
 
 
 class Indicator(QWidget):
@@ -46,6 +50,18 @@ class Indicator(QWidget):
 
     def show_recording(self):
         self._show("recording", "", ICON, ICON)
+
+    def show_preview(self, text):
+        """The recording dot with the last words heard, up to two lines."""
+        text = " ".join((text or "").split())
+        if not text:
+            self.show_recording()
+            return
+        metrics = QFontMetrics(self.font())
+        shown = _tail(text, metrics, PREVIEW_WIDTH, PREVIEW_LINES)
+        flags = int(Qt.TextFlag.TextWordWrap)
+        box = metrics.boundingRect(QRect(0, 0, PREVIEW_WIDTH, 1000), flags, shown)
+        self._show("preview", shown, 34 + box.width(), max(ICON, box.height() + 12))
 
     def show_busy(self):
         self._show("busy", "", ICON, ICON)
@@ -103,7 +119,7 @@ class Indicator(QWidget):
         self._phase += 0.18
         before = self.pos()
         self._place()
-        if self.pos() != before or self._state in ("recording", "busy"):
+        if self.pos() != before or self._state in ("recording", "preview", "busy"):
             self.update()
 
     def paintEvent(self, _event):
@@ -111,14 +127,22 @@ class Indicator(QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        preview = self._state == "preview"
         if self._message:
             rect = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
             path = QPainterPath()
             path.addRoundedRect(rect, 8, 8)
             painter.fillPath(path, BG)
-            painter.setPen(QPen(ERR, 1))
+            painter.setPen(QPen(EDGE if preview else ERR, 1))
             painter.drawPath(path)
         self._draw(painter)
+        if preview:
+            painter.setPen(TEXT)
+            painter.setFont(QFont(self.font()))
+            painter.drawText(QRectF(26, 6, self.width() - 32, self.height() - 12),
+                             int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                                 | Qt.TextFlag.TextWordWrap), self._message)
+            return
         if self._message:
             painter.setPen(ERR)
             painter.setFont(QFont(self.font()))
@@ -131,7 +155,7 @@ class Indicator(QWidget):
     def _draw(self, painter):
         cx = 14.0 if self._message else self.width() / 2
         cy = self.height() / 2
-        if self._state == "recording":
+        if self._state in ("recording", "preview"):
             pulse = 0.72 + 0.28 * (0.5 + 0.5 * math.sin(self._phase * 1.6))
             glow = QColor(REC)
             glow.setAlphaF(0.2 * pulse)
@@ -161,3 +185,19 @@ class Indicator(QWidget):
         painter.setPen(pen)
         painter.drawLine(QPointF(cx - 4, cy - 4), QPointF(cx + 4, cy + 4))
         painter.drawLine(QPointF(cx + 4, cy - 4), QPointF(cx - 4, cy + 4))
+
+
+def _tail(text, metrics, width, lines):
+    """The end of text that fits in lines, with an ellipsis when the start is cut."""
+    flags = int(Qt.TextFlag.TextWordWrap)
+    limit = lines * metrics.lineSpacing()
+    words = text.split(" ")
+    shown = text
+    start = 0
+    while metrics.boundingRect(QRect(0, 0, width, 10000), flags, shown).height() > limit:
+        # Drop words from the front in steps sized to the overflow, then one at a time.
+        start += max(1, (len(words) - start) // 4) if len(words) - start > 40 else 1
+        if start >= len(words):
+            return "\u2026" + metrics.elidedText(words[-1], Qt.TextElideMode.ElideLeft, width)
+        shown = "\u2026" + " ".join(words[start:])
+    return shown

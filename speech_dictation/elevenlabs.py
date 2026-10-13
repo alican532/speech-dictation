@@ -299,6 +299,9 @@ class ElevenLabsLive:
             detail = message.get("error") or message.get("message") or kind
             self.error = speech._redact(str(detail), self._key)[:80]
 
+    def preview(self):
+        return self._text()
+
     def _text(self):
         heard = " ".join(piece for piece in self._committed if piece)
         if self._partial.strip():

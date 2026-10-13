@@ -208,6 +208,11 @@ class GeminiSpeech(QObject):
         self._capturing = False
         self._from_button = False
         self.indicator = indicator.Indicator()
+        # Live services hear words while you speak; they show next to the dot.
+        self._shown_preview = ""
+        self._preview_timer = QTimer(self)
+        self._preview_timer.setInterval(150)
+        self._preview_timer.timeout.connect(self._show_preview)
         self.keys = hotkey.Hotkey()
         self.keys.failed.connect(self._fail)
         self._quitting = False
@@ -558,6 +563,9 @@ class GeminiSpeech(QObject):
             note("microphone open")
             self._overlay("recording")
             note("indicator shown")
+            self._shown_preview = ""
+            if hasattr(self._live, "preview"):
+                self._preview_timer.start()
         except Exception as exc:
             self._drop_recording()
             self._overlay("error", str(exc)[:80])
@@ -602,9 +610,20 @@ class GeminiSpeech(QObject):
         if live is not None:
             live.push(pcm)
 
+    def _show_preview(self):
+        live = self._live
+        if live is None or self._stopping or self.busy or not self.recorder.active:
+            self._preview_timer.stop()
+            return
+        text = live.preview()
+        if text != self._shown_preview:
+            self._shown_preview = text
+            self.indicator.show_preview(text)
+
     def _finish(self):
         if self._stopping or self.busy:
             return
+        self._preview_timer.stop()
         self._stopping = True
         self.busy = True
         sounds.play("stop")
@@ -654,6 +673,7 @@ class GeminiSpeech(QObject):
         job.start()
 
     def _drop_recording(self):
+        self._preview_timer.stop()
         if self.recorder.active:
             sounds.play("cancel")
         self._finish_token += 1
@@ -922,6 +942,8 @@ class GeminiSpeech(QObject):
     def _show_overlay(self, kind, message):
         if kind in ("recording", "busy") and self.button.isVisible():
             # The floating button already shows it, so the cursor stays clear.
+            if kind == "busy" and self._shown_preview:
+                self.indicator.dismiss()
             return
         if kind == "recording":
             self.indicator.show_recording()

@@ -28,6 +28,7 @@ ElevenLabs edit works only on ElevenLabs transcripts and Gemini Live translation
   - **Language badge** on the microphone's corner (for example `EN`): start or stop translation into that language. It turns blue while translating.
   - **Lock:** keep listening through pauses until you stop it.
   - **✕:** hide the bar (and cancel a running recording). The next dictation brings it back.
+- **Live preview (Scribe v2 Realtime, Gemini Live).** The words heard so far show in a small bubble by the recording dot while you speak. The text is still pasted once you stop, after correction or translation.
 - **Auto-stop.** After a few seconds of silence the recording ends and the text is pasted; a ring counts down the last seconds. If nothing is said at all, the recording is dropped and nothing is sent.
 - **Sounds.** On Windows, the same start, stop and cancel chimes as Windows voice typing; on macOS and Linux, the app's own chimes in `assets/sounds`.
 - **Pause trimming (Groq, ElevenLabs Scribe v2).** Silence before, after and between phrases is cut before upload. This is faster, costs less and keeps the model from inventing text on silence; stock phantom lines such as "Altyazı M.K." are dropped too.
