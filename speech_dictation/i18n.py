@@ -83,6 +83,9 @@ TR = {
     "Correction": "Düzeltme",
     "Translation": "Çeviri motoru",
     "Leave out filler words (um, uh)": "Dolgu kelimelerini çıkar (ıı, şey)",
+    "Send vocabulary to Scribe as key terms (extra cost)": "Sözlüğü Scribe'a anahtar terim olarak gönder (ek ücretli)",
+    "Scribe listens for these words. ElevenLabs adds $0.05 an hour for Scribe v2 and $0.08 for Realtime. Correction gets the words either way.":
+        "Scribe bu kelimeleri özellikle dinler. ElevenLabs, Scribe v2 için saatte $0,05, Realtime için $0,08 ekler. Düzeltme kelimeleri her durumda alır.",
     "ElevenLabs edit": "ElevenLabs düzenleme",
     "same request": "aynı istekte",
     "fast": "hızlı",

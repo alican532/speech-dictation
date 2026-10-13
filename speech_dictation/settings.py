@@ -285,6 +285,9 @@ class Settings(QDialog):
         self.budget.setToolTip(tr("A tray message when this month's estimated cost passes this amount"))
         self.trim = QCheckBox(tr("Cut pauses before sending"))
         self.no_verbatim = QCheckBox(tr("Leave out filler words (um, uh)"))
+        self.keyterms = QCheckBox(tr("Send vocabulary to Scribe as key terms (extra cost)"))
+        self.keyterms.setToolTip(tr("Scribe listens for these words. ElevenLabs adds $0.05 an hour for Scribe v2 "
+                                    "and $0.08 for Realtime. Correction gets the words either way."))
         self.sounds = QCheckBox(tr("Play a sound when listening starts and stops"))
         self.startup = QCheckBox(tr("Start with Windows") if sys.platform == "win32" else tr("Start at login"))
         self.shortcut = ShortcutField()
@@ -315,6 +318,7 @@ class Settings(QDialog):
             (tr("Vocabulary"), self.vocabulary),
             ("", self.trim),
             ("", self.no_verbatim),
+            ("", self.keyterms),
         ], " ")
         self._text = _section(tr("Text"), [
             (tr("Correction"), self.corrector),
@@ -410,6 +414,7 @@ class Settings(QDialog):
         form.setRowVisible(self.vocabulary, not live or prompts)
         form.setRowVisible(self.trim, service in ("groq", "groq-turbo", "elevenlabs"))
         form.setRowVisible(self.no_verbatim, own == "elevenlabs")
+        form.setRowVisible(self.keyterms, own == "elevenlabs")
         self._speech.note.setText(tr(SERVICE_NOTES[service]))
         if self.isVisible():
             QTimer.singleShot(0, self._fit)
@@ -438,6 +443,7 @@ class Settings(QDialog):
         self.service.blockSignals(False)
         self.trim.setChecked(values["trim"])
         self.no_verbatim.setChecked(values["no_verbatim"])
+        self.keyterms.setChecked(values["keyterms"])
         self.sounds.setChecked(values["sounds"])
         self.vocabulary.setText(values["vocabulary"])
         self.budget.setValue(values["budget"])
@@ -505,6 +511,7 @@ class Settings(QDialog):
             "auto_stop": int(self.auto_stop.currentData() or 0),
             "trim": self.trim.isChecked(),
             "no_verbatim": self.no_verbatim.isChecked(),
+            "keyterms": self.keyterms.isChecked(),
             "sounds": self.sounds.isChecked(),
             "corrector": self._chosen["corrector"] or "off",
             "translator": self._chosen["translator"] or self.translator.currentData(),

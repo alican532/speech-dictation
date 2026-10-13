@@ -33,7 +33,7 @@ ElevenLabs düzenleme yalnızca ElevenLabs metinlerinde, Gemini Live çevirisi y
 - **Duraklama kesme (Groq, ElevenLabs Scribe v2).** Cümlelerin önündeki, arkasındaki ve aralarındaki sessizlik gönderilmeden kesilir. Bu hem hızlandırır, hem ucuzlatır, hem de modelin sessizlikte metin uydurmasını önler; "Altyazı M.K." gibi bilinen hayalet cümleler de atılır.
 - **Dolgu kelimeleri (ElevenLabs).** "ıı", "şey" ve yarım kalan başlangıçlar çıkarılır.
 - **Akıllı düzeltme.** Seçilen motor, servisin yanlış duyduğu kelimeleri cümlenin bütününe bakarak düzeltir ve gerisine dokunmaz. Cevabı yeniden yazılmış gibi görünürse ya da istek başarısız olursa metin duyulduğu gibi yapıştırılır.
-- **Sözlük.** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak, ElevenLabs'e kulak vereceği anahtar terimler olarak, düzeltme ve çeviri motorlarına da gider.
+- **Sözlük.** Sık kullandığınız isimler ve terimler, örneğin `Claude`. Whisper'a yazım ipucu olarak, ElevenLabs'e kulak vereceği anahtar terimler olarak, düzeltme ve çeviri motorlarına da gider. Anahtar terimler ElevenLabs'de ek ücretlidir; Ayarlar'dan kapatırsanız düzeltme motoru kelimeleri yine alır.
 - **Kullanım sayfası.** Tepsi menüsünden ya da Ayarlar'daki Kullanım butonundan açılır. Bugün, son 7 gün, bu ay, son 30 gün ya da tüm zamanlar için her modelde kaç istek yapıldığını, ne kadar ses, token ya da karakter kullanıldığını ve bunun liste fiyatıyla ne tuttuğunu gösterir. Özette bir harcama grafiği, model başına ortalama bekleme ve duraklama kesmenin kazandırdığı tutar da vardır. Detay sekmesi her isteği saniyesine kadar, tek tek ya da dikteye göre gruplanmış olarak listeler; her satırda durum (tamam, ses duyulmadı, iptal, hata), bekleme ve maliyetin nasıl hesaplandığı görünür. Model ve duruma göre süzülebilir, CSV olarak dışa aktarılabilir. Ayarlar'daki aylık bütçe, ayın tahmini aşılınca tepside bir bildirim gösterir. Uygulama ücretsiz katman ve ücretsiz kotaların hâlâ geçerli olup olmadığını göremediği için bunlar düşülmez; rakamlar tahmindir, kesin tutar her sağlayıcının kendi sayfasındadır. Yalnızca miktarlar saklanır, metin asla saklanmaz; dosya `config.json` ile aynı klasördeki `usage.jsonl` dosyasıdır. Fiyatlar `speech_dictation/usage.py` içindeki tek bir tabloda durur.
 - **İki arayüz dili:** İngilizce ve Türkçe. Siz seçene kadar sistem dilini kullanır.
 - **Oturum açılınca başlat**, Ayarlar'da bir seçenek (Windows'ta Run kaydı, macOS'ta LaunchAgent, Linux'ta autostart dosyası).
@@ -95,7 +95,7 @@ Yalnızca seçili servisin ve motorların kullandıkları görünür.
 |---|---|
 | Servis | Groq Whisper Large v3 / Large v3 Turbo, ElevenLabs Scribe v2 / Scribe v2 Realtime, Gemini Live |
 | API anahtarları | Groq, ElevenLabs, Gemini, Google: kullanılanlar |
-| Konuşma | Konuştuğunuz dil, sözlük, duraklama kesme, dolgu kelimeleri |
+| Konuşma | Konuştuğunuz dil, sözlük, duraklama kesme, dolgu kelimeleri, ElevenLabs anahtar terimleri |
 | Metin | Düzeltme motoru, çeviri motoru, çeviri dili |
 | Genel | Uygulama dili, dikte / çeviri / iptal kısayolları, otomatik durdurma, sesler, oturum açılınca başlat |
 
@@ -112,7 +112,7 @@ Ayarların saklandığı yer:
 ## Maliyet ve gizlilik
 
 - **Groq:** Whisper Large v3 ses saati başına yaklaşık $0,111, Turbo yaklaşık $0,04; her istek en az 10 saniye üzerinden ücretlendirilir. GPT-OSS metin istekleri bir sentin çok küçük bir kısmı tutar. Kullanım sınırlı ücretsiz katman vardır.
-- **ElevenLabs:** Scribe v2 ses saati başına yaklaşık $0,22, Scribe v2 Realtime yaklaşık $0,39. Sözlükteki anahtar terimler %20, ElevenLabs düzenleme %30 ekler (en az 10 saniye üzerinden). Ücretsiz planda ayda birkaç saat vardır.
+- **ElevenLabs:** Scribe v2 ses saati başına yaklaşık $0,22, Scribe v2 Realtime yaklaşık $0,39. Sözlükteki anahtar terimler yaklaşık %20 (kapatılabilir), ElevenLabs düzenleme %30 ekler (en az 10 saniye üzerinden). Ücretsiz planda ayda birkaç saat vardır.
 - **Gemini:** Ücretsiz katmanda ücret yoktur; bu katmanda Google içeriği ürünlerini geliştirmek için kullanabilir. Ücretli katmanda dikte dakikası yaklaşık $0,009, çeviri dakikası yaklaşık $0,037'dir. Gemini Flash-Lite ve Flash metin istekleri bir sentin çok küçük bir kısmı tutar.
 - **Google Translate:** Milyon karakter başına $20; her ay ilk 500.000 karakter ücretsiz.
 

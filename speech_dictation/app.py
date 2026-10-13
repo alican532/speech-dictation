@@ -189,6 +189,8 @@ class GeminiSpeech(QObject):
         self.auto_stop = 3
         self.trim = True
         self.no_verbatim = True
+        # Vocabulary goes to Scribe as key terms, which ElevenLabs bills extra.
+        self.keyterms = True
         self.sounds = True
         # Engines for the text after it is heard; see textproc.
         self.corrector = "groq-120b"
@@ -288,6 +290,7 @@ class GeminiSpeech(QObject):
             "auto_stop": self.auto_stop,
             "trim": self.trim,
             "no_verbatim": self.no_verbatim,
+            "keyterms": self.keyterms,
             "sounds": self.sounds,
             "startup": startup.enabled(),
             "shortcut": self.shortcut,
@@ -456,6 +459,7 @@ class GeminiSpeech(QObject):
         self.auto_stop = values["auto_stop"]
         self.trim = values["trim"]
         self.no_verbatim = values["no_verbatim"]
+        self.keyterms = values["keyterms"]
         self.sounds = sounds.enabled = values["sounds"]
         record = self.shortcut = values["shortcut"]
         translate = self.translate = values["translate"]
@@ -565,6 +569,8 @@ class GeminiSpeech(QObject):
         target = next((name for name, code in LANGUAGES if code == self.language), "English")
         spoken = next((name for name, code in LANGUAGES if code == self.spoken), "")
         words = self.vocabulary
+        # Correction and ElevenLabs edit still get the words in their instruction.
+        terms = words if self.keyterms else ""
         edit = None
         if translator == "elevenlabs":
             edit = ("translate", textproc.translate_instruction(target, words, textproc.EDIT))
@@ -577,10 +583,10 @@ class GeminiSpeech(QObject):
             session = self._take_live()
         elif service == "elevenlabs":
             session = elevenlabs.ElevenLabsSession(
-                self.elevenlabs_key, self.spoken, self.trim, words, self.no_verbatim, edit)
+                self.elevenlabs_key, self.spoken, self.trim, terms, self.no_verbatim, edit)
             session.open()
         elif service == "elevenlabs-live":
-            session = elevenlabs.ElevenLabsLive(self.elevenlabs_key, self.spoken, words, self.no_verbatim)
+            session = elevenlabs.ElevenLabsLive(self.elevenlabs_key, self.spoken, terms, self.no_verbatim)
             session.open()
         else:
             session = groq.GroqSession(self.groq_key, service, self.spoken, self.trim, words)
@@ -850,6 +856,8 @@ class GeminiSpeech(QObject):
             self.trim = bool(data["trim"])
         if "no_verbatim" in data:
             self.no_verbatim = bool(data["no_verbatim"])
+        if "keyterms" in data:
+            self.keyterms = bool(data["keyterms"])
         # 2.0 kept a Groq model id and a correction switch; both became engines.
         old = {"openai/gpt-oss-120b": "groq-120b", "openai/gpt-oss-20b": "groq-20b"}
         translator = old.get(data.get("translator"), data.get("translator"))
@@ -891,6 +899,7 @@ class GeminiSpeech(QObject):
                 "auto_stop": self.auto_stop,
                 "trim": self.trim,
                 "no_verbatim": self.no_verbatim,
+                "keyterms": self.keyterms,
                 "sounds": self.sounds,
                 "translator": self.translator,
                 "corrector": self.corrector,

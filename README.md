@@ -33,7 +33,7 @@ ElevenLabs edit works only on ElevenLabs transcripts and Gemini Live translation
 - **Pause trimming (Groq, ElevenLabs Scribe v2).** Silence before, after and between phrases is cut before upload. This is faster, costs less and keeps the model from inventing text on silence; stock phantom lines such as "Altyazı M.K." are dropped too.
 - **Filler words (ElevenLabs).** "um", "uh" and false starts are left out.
 - **Smart correction.** The chosen engine fixes words the service misheard, judging by the whole sentence, and leaves everything else alone. If its reply looks like a rewrite, or the request fails, the text is pasted as it was heard.
-- **Vocabulary.** Names and terms you use often, such as `Claude`. They go to Whisper as a spelling hint, to ElevenLabs as key terms it listens for, and to the correction and translation engines.
+- **Vocabulary.** Names and terms you use often, such as `Claude`. They go to Whisper as a spelling hint, to ElevenLabs as key terms it listens for, and to the correction and translation engines. Key terms cost extra on ElevenLabs; turn them off in Settings and the correction engine still gets the words.
 - **Usage page.** Opens from the tray menu or the Usage button in Settings. It shows, per model, how many requests were made, how much audio, tokens or characters they used and what that costs at list price, for today, the last 7 days, this month, the last 30 days or all time. The summary adds a spending chart, the average wait per model and how much cutting pauses saved. Details lists every request to the second, either one by one or grouped by dictation, with its status (done, nothing heard, cancelled, failed), the wait, and how its cost was worked out; it filters by model and status and exports to CSV. A monthly budget in Settings shows a tray message once the month's estimate passes it. Free tiers and free allowances are not taken off, since the app cannot see whether they still apply, so the figures are estimates; the exact bill is on each provider's page. Only amounts are kept, never the text, in `usage.jsonl` next to `config.json`. The prices live in one table in `speech_dictation/usage.py`.
 - **Two interface languages:** English and Turkish. The app follows the system language until you pick one.
 - **Start at sign-in**, an option in Settings (a Run entry on Windows, a LaunchAgent on macOS, an autostart entry on Linux).
@@ -95,7 +95,7 @@ Only what the chosen service and engines use shows.
 |---|---|
 | Service | Groq Whisper Large v3 / Large v3 Turbo, ElevenLabs Scribe v2 / Scribe v2 Realtime, Gemini Live |
 | API keys | Groq, ElevenLabs, Gemini, Google: the ones in use |
-| Speech | The language you speak, vocabulary, pause trimming, filler words |
+| Speech | The language you speak, vocabulary, pause trimming, filler words, ElevenLabs key terms |
 | Text | Correction engine, translation engine, translation language |
 | General | App language, dictate / translate / cancel shortcuts, auto-stop, sounds, start at sign-in |
 
@@ -112,7 +112,7 @@ On first start a config left by the original GeminiSpeechAPI app is copied over 
 ## Costs and privacy
 
 - **Groq:** Whisper Large v3 is about $0.111 per audio hour and Turbo about $0.04; each request is billed for at least 10 seconds. GPT-OSS text calls cost a fraction of a cent. There is a rate-limited free tier.
-- **ElevenLabs:** Scribe v2 is about $0.22 and Scribe v2 Realtime about $0.39 per audio hour. Vocabulary key terms add 20%, ElevenLabs edit adds 30% (billed for at least 10 seconds). The free plan includes a few hours a month.
+- **ElevenLabs:** Scribe v2 is about $0.22 and Scribe v2 Realtime about $0.39 per audio hour. Vocabulary key terms add about 20% (you can turn them off), ElevenLabs edit adds 30% (billed for at least 10 seconds). The free plan includes a few hours a month.
 - **Gemini:** free of charge on the free tier, where Google may use the content to improve its products. On the paid tier, dictation is about $0.009 and translation about $0.037 per minute. Gemini Flash-Lite and Flash text calls cost a fraction of a cent.
 - **Google Translate:** $20 per million characters, the first 500,000 characters a month free.
 
