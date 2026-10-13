@@ -300,7 +300,8 @@ class ElevenLabsLive:
             self.error = speech._redact(str(detail), self._key)[:80]
 
     def preview(self):
-        return self._text()
+        """(committed, partial) text so far, read from the UI thread while _run appends."""
+        return " ".join(piece for piece in list(self._committed) if piece), self._partial.strip()
 
     def _text(self):
         heard = " ".join(piece for piece in self._committed if piece)

@@ -192,8 +192,12 @@ class LiveSession:
         return bytes(blob)
 
     def preview(self):
-        # Read from the UI thread while _run appends; a torn read only shows one tick late.
-        return self._text()
+        """(settled, still changing) text so far, read from the UI thread while _run appends."""
+        if self._language:
+            # Translated pieces are not revised once they arrive.
+            return " ".join(self._translated.split()), ""
+        finals = [piece.strip() for piece in list(self._finals) if piece and piece.strip()]
+        return " ".join(finals), self._interim.strip()
 
     def _text(self):
         if self._language:

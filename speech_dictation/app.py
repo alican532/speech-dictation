@@ -209,7 +209,7 @@ class GeminiSpeech(QObject):
         self._from_button = False
         self.indicator = indicator.Indicator()
         # Live services hear words while you speak; they show next to the dot.
-        self._shown_preview = ""
+        self._shown_preview = ("", "")
         self._preview_timer = QTimer(self)
         self._preview_timer.setInterval(150)
         self._preview_timer.timeout.connect(self._show_preview)
@@ -563,7 +563,7 @@ class GeminiSpeech(QObject):
             note("microphone open")
             self._overlay("recording")
             note("indicator shown")
-            self._shown_preview = ""
+            self._shown_preview = ("", "")
             if hasattr(self._live, "preview"):
                 self._preview_timer.start()
         except Exception as exc:
@@ -615,10 +615,10 @@ class GeminiSpeech(QObject):
         if live is None or self._stopping or self.busy or not self.recorder.active:
             self._preview_timer.stop()
             return
-        text = live.preview()
-        if text != self._shown_preview:
-            self._shown_preview = text
-            self.indicator.show_preview(text)
+        heard = live.preview()
+        if heard != self._shown_preview:
+            self._shown_preview = heard
+            self.indicator.show_preview(*heard)
 
     def _finish(self):
         if self._stopping or self.busy:
@@ -942,7 +942,7 @@ class GeminiSpeech(QObject):
     def _show_overlay(self, kind, message):
         if kind in ("recording", "busy") and self.button.isVisible():
             # The floating button already shows it, so the cursor stays clear.
-            if kind == "busy" and self._shown_preview:
+            if kind == "busy" and any(self._shown_preview):
                 self.indicator.dismiss()
             return
         if kind == "recording":
